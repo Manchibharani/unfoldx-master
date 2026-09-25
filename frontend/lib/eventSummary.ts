@@ -1,19 +1,24 @@
 import type { WorkspaceEvent } from "./types";
 
+function stringField(payload: Record<string, unknown>, key: string, fallback: string): string {
+  const value = payload[key];
+  return typeof value === "string" ? value : fallback;
+}
+
 /**
  * Turns a raw payload into one plain-language line. Falls back to a
  * compact JSON preview for event types this hasn't been taught yet,
  * so an unrecognized backend payload still renders instead of breaking.
  */
 export function summarize(event: WorkspaceEvent): string {
-  const p = event.payload as Record<string, any>;
+  const p = event.payload;
   let text: string;
   switch (event.event_type) {
     case "provider_connected":
-      text = p.detail ?? `${p.provider ?? event.provider} connected`;
+      text = stringField(p, "detail", `${stringField(p, "provider", event.provider)} connected`);
       break;
     case "task_submitted":
-      text = p.summary ?? "Task submitted";
+      text = stringField(p, "summary", "Task submitted");
       break;
     case "plan_decomposed":
       text = Array.isArray(p.subtasks)
@@ -27,19 +32,19 @@ export function summarize(event: WorkspaceEvent): string {
       text = "Checked for conflicts with in-flight work — none found";
       break;
     case "conflict_detected":
-      text = p.detail ?? "Conflict detected against another in-flight subtask";
+      text = stringField(p, "detail", "Conflict detected against another in-flight subtask");
       break;
     case "dispatch_started":
-      text = p.command ? `Dispatched: ${p.command}` : "Dispatch started";
+      text = typeof p.command === "string" ? `Dispatched: ${p.command}` : "Dispatch started";
       break;
     case "log_line":
-      text = p.line ?? "…";
+      text = stringField(p, "line", "…");
       break;
     case "budget_update":
       text =
         p.override === true
           ? "Budget override approved"
-          : `Spend updated — $${(p.spent_usd ?? 0).toFixed(3)} of $${(p.cap_usd ?? 0).toFixed(2)}`;
+          : `Spend updated — $${(typeof p.spent_usd === "number" ? p.spent_usd : 0).toFixed(3)} of $${(typeof p.cap_usd === "number" ? p.cap_usd : 0).toFixed(2)}`;
       break;
     case "circuit_breaker_triggered":
       text = "Budget cap reached — dispatch paused";
@@ -50,17 +55,23 @@ export function summarize(event: WorkspaceEvent): string {
       text = `Handoff recorded — ${decisions} decision(s), ${files} file(s) touched`;
       break;
     }
+    case "agent_output": {
+      const raw = typeof p.text === "string" ? p.text.trim() : "";
+      const first = raw.split("\n")[0] ?? "";
+      text = first ? (first.length > 140 ? `${first.slice(0, 140)}…` : first) : "Agent output received";
+      break;
+    }
     case "authorization_denied":
-      text = p.detail ?? "Action blocked by workspace role";
+      text = stringField(p, "detail", "Action blocked by workspace role");
       break;
     case "task_completed":
       text =
         p.status === "stopped"
           ? "Task stopped"
-          : p.summary ?? "Task completed";
+          : stringField(p, "summary", "Task completed");
       break;
     case "error": {
-      const message = p.message ?? "Error";
+      const message = stringField(p, "message", "Error");
       text = typeof p.status !== "undefined" ? `${message} (${p.status})` : message;
       break;
     }

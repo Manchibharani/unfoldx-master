@@ -12,11 +12,11 @@ const LABEL: Record<Provider, string> = {
 // load-bearing engine (Plan-mode decomposition + primary headless path),
 // not just one adapter among equals.
 const STYLE: Record<Provider, string> = {
-  bob: "bg-ledger-gold/15 text-ledger-gold border-ledger-gold/40",
-  claude_code: "bg-ledger-teal/15 text-ledger-teal border-ledger-teal/40",
-  codex: "bg-ledger-violet/10 text-ledger-violet border-ledger-violet/30",
-  gemini: "bg-muted/10 text-muted border-muted/30",
-  system: "bg-muted/10 text-muted border-muted/30",
+  bob: "bg-state-orchestration/15 text-state-orchestration border-state-orchestration/40",
+  claude_code: "bg-state-inactive/10 text-state-inactive border-state-inactive/30",
+  codex: "bg-state-inactive/10 text-state-inactive border-state-inactive/30",
+  gemini: "bg-state-inactive/10 text-state-inactive border-state-inactive/30",
+  system: "bg-state-inactive/10 text-state-inactive border-state-inactive/30",
 };
 
 export function ProviderBadge({ provider }: { provider: Provider }) {

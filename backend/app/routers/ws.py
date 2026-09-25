@@ -21,14 +21,16 @@ log = logging.getLogger("uaw.ws")
 async def feed(websocket: WebSocket, workspace_id: str):
     ctx = websocket.app.state.ctx
     q = websocket.query_params
+    user = None
+    role = None
     async with ctx.db.sessionmaker() as s:
         try:
             user = await resolve_user(ctx, s, q.get("token"))
         except Exception:
-            await websocket.close(code=st.WS_1008_POLICY_VIOLATION)
-            return
-        ws = await s.get(Workspace, workspace_id)
-        role = await role_for(ctx, s, workspace_id, user) if ws else None
+            pass
+        if user is not None:
+            ws = await s.get(Workspace, workspace_id)
+            role = await role_for(ctx, s, workspace_id, user) if ws else None
     if role is None or RANK[role] < RANK["view"]:
         await websocket.close(code=st.WS_1008_POLICY_VIOLATION)
         return
@@ -65,6 +67,8 @@ async def feed(websocket: WebSocket, workspace_id: str):
             done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for t in pending:
                 t.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
             for t in done:
                 exc = t.exception()
                 if exc and not isinstance(exc, (WebSocketDisconnect, RuntimeError)):

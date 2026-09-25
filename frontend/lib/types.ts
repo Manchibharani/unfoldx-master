@@ -19,6 +19,7 @@ export type EventType =
   | "budget_update"
   | "circuit_breaker_triggered"
   | "handoff_emitted"
+  | "agent_output"
   | "authorization_denied"
   | "task_completed"
   | "error";

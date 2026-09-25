@@ -12,6 +12,26 @@ body {
   box-sizing: border-box;
 }
 
+.handoff-edge .react-flow__edge-path {
+  stroke-dasharray: 7 5;
+  animation: handoff-land 800ms ease-out both;
+}
+
+.verification-land {
+  animation: verification-land 650ms ease-out both;
+}
+
+@keyframes handoff-land {
+  from { stroke-dashoffset: 24; opacity: 0.35; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes verification-land {
+  from { transform: translateY(-2px); box-shadow: 0 0 0 0 rgb(79 184 166 / 0%); }
+  50% { box-shadow: 0 0 0 4px rgb(79 184 166 / 20%); }
+  to { transform: translateY(0); box-shadow: 0 0 0 0 rgb(79 184 166 / 0%); }
+}
+
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -26,5 +46,10 @@ body {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+
+  .handoff-edge .react-flow__edge-path,
+  .verification-land {
+    animation: none !important;
   }
 }

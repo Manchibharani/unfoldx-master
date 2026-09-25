@@ -61,6 +61,11 @@ const SCRIPT: Array<Omit<WorkspaceEvent, "id" | "prev_hash" | "hash" | "seq" | "
     event_type: "plan_decomposed",
     payload: {
       subtasks: ["Inspect existing auth middleware", "Implement token-bucket limiter", "Add tests"],
+      plan: [
+        { id: "task-1.1", title: "Inspect existing auth middleware", files: ["src/middleware/auth.py"] },
+        { id: "task-1.2", title: "Implement token-bucket limiter", files: ["src/limiter.py"] },
+        { id: "task-1.3", title: "Add tests", files: ["tests/**"] },
+      ],
     },
   },
   {
@@ -138,12 +143,25 @@ const SCRIPT: Array<Omit<WorkspaceEvent, "id" | "prev_hash" | "hash" | "seq" | "
     subtask_id: "task-1.2",
     agent_id: "claude-code-1",
     provider: "claude_code",
+    event_type: "agent_output",
+    payload: {
+      text: "Implemented TokenBucketLimiter with a 60 req/min refill rate.\nWired it into the auth middleware and extracted the shared config helper.",
+      simulated: false,
+      structured: true,
+    },
+  },
+  {
+    workspace_id: "demo-workspace",
+    task_id: "task-1",
+    subtask_id: "task-1.2",
+    agent_id: "claude-code-1",
+    provider: "claude_code",
     event_type: "handoff_emitted",
     payload: {
       decisions: ["Used token-bucket over sliding-window for simplicity"],
       constraints: ["Must not add a new dependency"],
       rejected_approaches: ["Redis-backed limiter — out of scope for this subtask"],
-      files_touched: ["src/middleware/auth.py", "src/limiter.py"],
+      files_touched: ["src/middleware/auth.py", "src/limiter.py", "src/limiter/config.py"],
     },
   },
   {

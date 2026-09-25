@@ -19,28 +19,28 @@ import { FileChips } from "../FileChips";
 import { NodeAttachments } from "./NodeAttachments";
 
 const AGENT_STATUS_STYLE: Record<AgentStatus, string> = {
-  idle: "text-muted border-muted/30 bg-muted/10",
-  running: "text-ledger-teal border-ledger-teal/40 bg-ledger-teal/10",
-  paused: "text-ledger-gold border-ledger-gold/40 bg-ledger-gold/10",
-  stopped: "text-ledger-coral border-ledger-coral/40 bg-ledger-coral/10",
-  tripped: "text-ledger-coral border-ledger-coral/50 bg-ledger-coral/15",
+  idle: "text-state-inactive border-state-inactive/30 bg-state-inactive/10",
+  running: "text-state-running border-state-running/40 bg-state-running/10",
+  paused: "text-state-warning border-state-warning/40 bg-state-warning/10",
+  stopped: "text-state-conflict border-state-conflict/40 bg-state-conflict/10",
+  tripped: "text-state-conflict border-state-conflict/50 bg-state-conflict/15",
 };
 
 const SUBTASK_STATUS_STYLE: Record<SubtaskStatus, string> = {
-  submitted: "text-ledger-violet border-ledger-violet/40 bg-ledger-violet/10",
-  queued: "text-muted border-muted/30 bg-muted/10",
-  running: "text-ledger-teal border-ledger-teal/40 bg-ledger-teal/10",
-  done: "text-ledger-gold border-ledger-gold/40 bg-ledger-gold/10",
-  blocked: "text-ledger-coral border-ledger-coral/40 bg-ledger-coral/10",
+  submitted: "text-state-orchestration border-state-orchestration/40 bg-state-orchestration/10",
+  queued: "text-state-inactive border-state-inactive/30 bg-state-inactive/10",
+  running: "text-state-running border-state-running/40 bg-state-running/10",
+  done: "text-state-running border-state-running/40 bg-state-running/10",
+  blocked: "text-state-conflict border-state-conflict/40 bg-state-conflict/10",
 };
 
 const ACTIVITY_STYLE: Record<ActivityKind, string> = {
   log: "text-parchment/80",
-  command: "text-ledger-violet",
-  result: "text-ledger-teal",
-  prompt: "text-ledger-gold",
-  route: "text-ledger-gold/90",
-  status: "text-ledger-coral",
+  command: "text-state-orchestration",
+  result: "text-state-running",
+  prompt: "text-state-orchestration",
+  route: "text-state-orchestration",
+  status: "text-state-inactive",
 };
 
 function ConnectionPort({
@@ -58,7 +58,7 @@ function ConnectionPort({
       type={type}
       position={position}
       title={isSource ? "Drag from here to connect to another node" : "Drop a connector here"}
-      className="!flex !h-3.5 !w-3.5 !items-center !justify-center !rounded-full !bg-ink-900 !transition-all hover:!h-5 hover:!w-5 hover:!shadow-[0_0_10px_-1px]"
+      className="!flex !h-3.5 !w-3.5 !items-center !justify-center !rounded-full !bg-ink-900"
       style={{
         border: `1.5px solid ${accent}`,
         boxShadow: `0 0 0 4px ${accent}1f`,
@@ -103,7 +103,7 @@ function BudgetBar({ spent, cap, breaker }: { spent: number; cap: number; breake
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-700">
       <div
-        className={`h-full rounded-full transition-[width] duration-500 ${breaker ? "bg-ledger-coral" : "bg-ledger-teal"}`}
+        className={`h-full rounded-full ${breaker ? "bg-state-conflict" : "bg-state-running"}`}
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -128,17 +128,17 @@ function ProviderChip({ provider }: { provider: Provider }) {
 function Monitor({ activity }: { activity: AgentState["activity"] }) {
   if (activity.length === 0) {
     return (
-      <div className="mt-2 flex h-[74px] items-center justify-center rounded-sm border border-ink-700 bg-ink-950 font-mono text-[10px] text-muted/50">
+      <div className="mt-2 flex h-[74px] items-center justify-center rounded-sm border border-ink-700 bg-ink-950 text-[10px] text-state-inactive">
         no activity yet
       </div>
     );
   }
   return (
-    <div className="mt-2 h-[74px] overflow-hidden rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 font-mono text-[10px] leading-[15px]">
+    <div className="mt-2 h-[74px] overflow-hidden rounded-sm border border-ink-700 bg-ink-950 px-2 py-1 text-[10px] leading-[15px]">
       {activity.slice(-4).map((l) => (
         <div key={l.id} className={`truncate ${ACTIVITY_STYLE[l.kind]}`} title={l.text}>
-          <span className="text-muted/40">{clock(l.at)} </span>
-          {l.text}
+          <span className="tabular-nums text-state-inactive">{clock(l.at)} </span>
+          <span className={l.kind === "log" ? "font-mono" : ""}>{l.text}</span>
         </div>
       ))}
     </div>
@@ -170,12 +170,12 @@ function PromptBox({
           onChange={(e) => setValue(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
-          className="min-w-0 flex-1 rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[11px] text-parchment outline-none placeholder:text-muted/50 focus:border-ledger-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[11px] text-parchment outline-none placeholder:text-muted focus:border-state-orchestration/60 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={disabled}
-          className="shrink-0 rounded-sm border border-ledger-gold/40 bg-ledger-gold/10 px-2 py-1 text-[10px] font-medium text-ledger-gold hover:bg-ledger-gold/20 disabled:cursor-not-allowed disabled:opacity-40"
+          className="shrink-0 rounded-sm border border-state-orchestration/40 bg-state-orchestration/10 px-2 py-1 text-[10px] font-medium text-state-orchestration disabled:cursor-not-allowed disabled:opacity-40"
         >
           Send
         </button>
@@ -187,7 +187,7 @@ function PromptBox({
 function LockedNote({ role, text }: { role: Permissions["role"]; text: string }) {
   return (
     <div className="nodrag mt-2 rounded-sm border border-ink-700 bg-ink-950 px-2 py-1.5 text-[10px] text-muted/60">
-      {text} <span className="font-mono uppercase text-muted/40">({role ?? "unknown"})</span>
+      {text} <span className="text-state-inactive">({role ?? "unknown"})</span>
     </div>
   );
 }
@@ -205,11 +205,11 @@ export function AgentNode({ data }: NodeProps) {
 
   return (
     <div
-      className="w-72 rounded-lg border bg-ink-900 px-3 py-2.5 shadow-lg transition-shadow"
+      className="w-72 rounded-lg border bg-ink-900 px-3 py-2.5 shadow-lg"
       style={{
-        borderColor: agent.active ? accent : "#1F283B",
+        borderColor: agent.active ? "#4FB8A6" : "#1F283B",
         boxShadow: agent.active
-          ? `0 0 0 1px ${accent}, 0 0 26px -6px ${accent}`
+          ? "0 0 0 1px #4FB8A6, 0 0 26px -6px #4FB8A6"
           : "0 8px 20px -14px rgba(0,0,0,0.9)",
       }}
     >
@@ -221,13 +221,13 @@ export function AgentNode({ data }: NodeProps) {
           {agent.label}
         </span>
         <div className="flex items-center gap-1">
-          {!agent.builtIn && <Pill className="border-ledger-violet/40 bg-ledger-violet/10 text-ledger-violet">added</Pill>}
+          {!agent.builtIn && <Pill className="border-state-orchestration/40 bg-state-orchestration/10 text-state-orchestration">added</Pill>}
           <Pill className={AGENT_STATUS_STYLE[agent.status]}>{agent.status}</Pill>
           {!agent.builtIn && (
             <button
               type="button"
               onClick={() => onAction({ kind: "remove_agent", agentId: agent.id })}
-              className="nodrag rounded-sm px-1 text-xs text-muted hover:text-ledger-coral"
+              className="nodrag rounded-sm px-1 text-xs text-state-inactive hover:text-state-conflict"
               title="Remove agent"
             >
               ×
@@ -236,13 +236,13 @@ export function AgentNode({ data }: NodeProps) {
         </div>
       </div>
 
-      <div className="mt-0.5 font-mono text-[10px] text-muted/60">
+      <div className="mt-0.5 text-[10px] text-state-inactive">
         {agent.connected ? "connected" : "not connected"} · {agent.eventCount} events ·{" "}
         {agent.capabilities.slice(0, 3).join(" / ")}
       </div>
 
       <div className="mt-2">
-        <div className="mb-1 flex items-center justify-between font-mono text-[11px] text-muted">
+        <div className="mb-1 flex items-center justify-between text-[11px] tabular-nums text-muted">
           <span>
             ${agent.spentUsd.toFixed(3)} / {agent.capUsd > 0 ? `$${agent.capUsd.toFixed(2)}` : "no cap"}
           </span>
@@ -274,7 +274,7 @@ export function AgentNode({ data }: NodeProps) {
                     additionalUsd: agent.capUsd > 0 ? agent.capUsd : 25,
                   })
                 }
-                className="rounded-sm border border-ledger-coral/50 bg-ledger-coral/15 px-2 py-1 text-[10px] font-medium text-ledger-coral hover:bg-ledger-coral/25"
+                className="rounded-sm border border-state-warning/50 bg-state-warning/10 px-2 py-1 text-[10px] font-medium text-state-warning"
               >
                 Approve override
               </button>
@@ -283,7 +283,7 @@ export function AgentNode({ data }: NodeProps) {
               <button
                 type="button"
                 onClick={() => onAction({ kind: "resume", provider: agent.provider })}
-                className="rounded-sm border border-ledger-gold/40 bg-ledger-gold/10 px-2 py-1 text-[10px] font-medium text-ledger-gold hover:bg-ledger-gold/20"
+                className="rounded-sm border border-state-running/40 bg-state-running/10 px-2 py-1 text-[10px] font-medium text-state-running"
               >
                 Resume
               </button>
@@ -301,7 +301,7 @@ export function AgentNode({ data }: NodeProps) {
               onClick={() =>
                 onAction({ kind: "stop", provider: agent.provider, taskId: agent.activeTaskId ?? undefined })
               }
-              className="rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[10px] font-medium text-muted hover:text-ledger-coral"
+              className="rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[10px] font-medium text-state-inactive hover:text-state-conflict"
             >
               Stop
             </button>
@@ -330,9 +330,9 @@ export function HubNode({ data }: NodeProps) {
     <div
       className="w-72 rounded-xl border bg-ink-900 px-4 py-3 shadow-xl"
       style={{
-        borderColor: agent.active ? accent : "#2B3651",
+        borderColor: agent.active ? "#4FB8A6" : "#2B3651",
         boxShadow: agent.active
-          ? `0 0 0 1px ${accent}, 0 0 34px -6px ${accent}`
+          ? "0 0 0 1px #4FB8A6, 0 0 34px -6px #4FB8A6"
           : "0 10px 24px -16px rgba(0,0,0,0.9)",
       }}
     >
@@ -344,7 +344,7 @@ export function HubNode({ data }: NodeProps) {
           <div className="text-sm font-semibold" style={{ color: accent }}>
             {agent.label}
           </div>
-          <div className="font-mono text-[10px] text-muted">orchestrator · capability routing</div>
+          <div className="text-[10px] text-state-orchestration">orchestrator · capability routing</div>
         </div>
         <Pill className={agent.active ? AGENT_STATUS_STYLE.running : AGENT_STATUS_STYLE.idle}>
           {agent.active ? "decomposing" : "watching"}
@@ -353,11 +353,11 @@ export function HubNode({ data }: NodeProps) {
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
         <div className="rounded-sm border border-ink-700 bg-ink-800 px-2 py-1.5">
-          <div className="font-mono text-parchment">{subtaskCount}</div>
+          <div className="text-parchment tabular-nums">{subtaskCount}</div>
           <div className="text-muted/70">subtasks</div>
         </div>
         <div className="rounded-sm border border-ink-700 bg-ink-800 px-2 py-1.5">
-          <div className="font-mono text-parchment">{agent.eventCount}</div>
+          <div className="text-parchment tabular-nums">{agent.eventCount}</div>
           <div className="text-muted/70">events</div>
         </div>
       </div>
@@ -390,10 +390,10 @@ export function SubtaskNode({ data }: NodeProps) {
   return (
     <div
       className="w-64 rounded-lg border bg-ink-900 px-3 py-2 shadow-md"
-      style={{ borderColor: subtask.conflict ? "#E2685A" : "#1F283B" }}
+      style={{ borderColor: subtask.conflict ? "#EA7568" : "#1F283B" }}
     >
-      <ConnectionPort type="target" position={Position.Left} accent="#8D7BE0" />
-      <ConnectionPort type="source" position={Position.Right} accent="#8D7BE0" />
+      <ConnectionPort type="target" position={Position.Left} accent="#9585E8" />
+      <ConnectionPort type="source" position={Position.Right} accent="#9585E8" />
 
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs leading-snug text-parchment">{subtask.label}</p>
@@ -407,17 +407,17 @@ export function SubtaskNode({ data }: NodeProps) {
           <span className="text-[10px] text-muted/70">awaiting routing</span>
         )}
         {subtask.conflict && (
-          <Pill className="border-ledger-coral/50 bg-ledger-coral/15 text-ledger-coral">conflict</Pill>
+          <Pill className="border-state-conflict/50 bg-state-conflict/15 text-state-conflict">conflict</Pill>
         )}
         {subtask.filesTouched > 0 && (
-          <span className="font-mono text-[10px] text-muted/70">{subtask.filesTouched} files</span>
+          <span className="text-[10px] tabular-nums text-state-inactive">{subtask.filesTouched} files</span>
         )}
       </div>
 
       <FileChips files={subtask.files} className="nodrag mt-2" />
 
       {subtask.routeReason && (
-        <p className="mt-1.5 border-l border-ledger-gold/30 pl-2 text-[10px] leading-snug text-muted">
+        <p className="mt-1.5 border-l border-state-orchestration/40 pl-2 text-[10px] leading-snug text-muted">
           {subtask.routeReason}
         </p>
       )}
@@ -436,7 +436,7 @@ export function SubtaskNode({ data }: NodeProps) {
                 target: e.target.value as Provider,
               })
             }
-            className="flex-1 rounded-sm border border-ink-600 bg-ink-800 px-1.5 py-1 text-[10px] text-parchment outline-none focus:border-ledger-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1 rounded-sm border border-ink-600 bg-ink-800 px-1.5 py-1 text-[10px] text-parchment outline-none focus:border-state-orchestration/60 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="">{permissions.canControl ? "pick agent…" : "redirect needs control role"}</option>
             <option value="bob">{PROVIDER_LABEL.bob}</option>

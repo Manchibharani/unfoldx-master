@@ -5,15 +5,15 @@ import type { MeResult, WorkspaceRole } from "@/lib/api";
 import type { AuthStatus } from "@/lib/useAuth";
 
 const ROLE_CHIP: Record<WorkspaceRole, string> = {
-  view: "border-ink-600 bg-ink-800 text-muted",
-  control: "border-ledger-teal/40 bg-ledger-teal/10 text-ledger-teal",
-  approve: "border-ledger-gold/40 bg-ledger-gold/10 text-ledger-gold",
+  view: "border-ink-600 bg-ink-800 text-state-inactive",
+  control: "border-state-running/40 bg-state-running/10 text-state-running",
+  approve: "border-state-warning/40 bg-state-warning/10 text-state-warning",
 };
 
 const ROLE_DOT: Record<WorkspaceRole, string> = {
-  view: "bg-muted/50",
-  control: "bg-ledger-teal",
-  approve: "bg-ledger-gold",
+  view: "bg-state-inactive",
+  control: "bg-state-running",
+  approve: "bg-state-warning",
 };
 
 const STATUS_LABEL: Record<AuthStatus, string> = {
@@ -64,17 +64,17 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
   };
 
   const input =
-    "min-w-0 w-full rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[11px] text-parchment outline-none placeholder:text-muted/50 focus:border-ledger-gold/60";
+    "min-w-0 w-full rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[11px] text-parchment outline-none placeholder:text-muted focus:border-state-orchestration/60";
 
   return (
     <div className="flex flex-col items-end gap-1.5">
       <div className="flex items-center gap-2">
         <span
           title={!role && error ? error : undefined}
-          className="font-mono text-[10px] uppercase tracking-wide text-muted/60"
+          className="text-[10px] uppercase tracking-wide text-state-inactive"
         >
           {STATUS_LABEL[status]}
-          {!role && error && <span className="ml-1 text-ledger-coral">· no role</span>}
+          {!role && error && <span className="ml-1 text-state-conflict">· no role</span>}
         </span>
         {role && (
           <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${ROLE_CHIP[role]}`}>
@@ -84,11 +84,11 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
         )}
         {signedIn ? (
           <>
-            <span className="max-w-[160px] truncate font-mono text-[10px] text-parchment/80">{user?.email}</span>
+            <span className="max-w-[160px] truncate text-[10px] text-parchment">{user?.email}</span>
             <button
               type="button"
               onClick={onLogout}
-              className="rounded-sm border border-ink-600 bg-ink-800 px-1.5 py-0.5 text-[10px] font-medium text-muted hover:text-ledger-coral"
+              className="rounded-sm border border-ink-600 bg-ink-800 px-1.5 py-0.5 text-[10px] font-medium text-state-inactive hover:text-state-conflict"
             >
               Sign out
             </button>
@@ -98,7 +98,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             type="button"
             onClick={() => setOpen((v) => !v)}
             disabled={status === "mock"}
-            className="rounded-sm border border-ledger-gold/40 bg-ledger-gold/10 px-2 py-0.5 text-[10px] font-medium text-ledger-gold hover:bg-ledger-gold/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-sm border border-state-orchestration/50 bg-state-orchestration/10 px-2 py-0.5 text-[10px] font-medium text-state-orchestration disabled:cursor-not-allowed disabled:opacity-40"
           >
             Sign in / Register
           </button>
@@ -155,7 +155,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
                 <select
                   value={roleChoice}
                   onChange={(e) => setRoleChoice(e.target.value as WorkspaceRole)}
-                  className="flex-1 rounded-sm border border-ink-600 bg-ink-800 px-1.5 py-1 text-[10px] text-parchment outline-none focus:border-ledger-gold/60"
+                  className="flex-1 rounded-sm border border-ink-600 bg-ink-800 px-1.5 py-1 text-[10px] text-parchment outline-none focus:border-state-orchestration/60"
                 >
                   <option value="view">view</option>
                   <option value="control">control</option>
@@ -165,7 +165,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             )}
 
             {error && (
-              <p className="max-h-16 overflow-y-auto border-l border-ledger-coral/50 pl-2 text-[10px] leading-snug text-ledger-coral/90">
+              <p className="max-h-16 overflow-y-auto border-l border-state-conflict/50 pl-2 text-[10px] leading-snug text-state-conflict">
                 {error}
               </p>
             )}
@@ -173,7 +173,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             <button
               type="submit"
               disabled={busy}
-              className="rounded-sm border border-ledger-gold/40 bg-ledger-gold/10 px-2 py-1 text-[10px] font-medium text-ledger-gold hover:bg-ledger-gold/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-sm border border-state-orchestration/50 bg-state-orchestration/10 px-2 py-1 text-[10px] font-medium text-state-orchestration disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy ? (mode === "login" ? "Signing in…" : "Creating account…") : mode === "login" ? "Sign in" : "Create account & join"}
             </button>

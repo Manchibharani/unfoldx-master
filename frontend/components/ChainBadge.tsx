@@ -9,10 +9,10 @@ const THROTTLE_MS = 3000;
 type ChainStatus = "loading" | "ok" | "broken" | "unavailable";
 
 const STYLE: Record<ChainStatus, string> = {
-  loading: "border-ink-600 bg-ink-800 text-muted",
-  ok: "border-ledger-teal/40 bg-ledger-teal/10 text-ledger-teal",
-  broken: "border-ledger-coral/50 bg-ledger-coral/10 text-ledger-coral",
-  unavailable: "border-ink-700 bg-ink-950 text-muted/60",
+  loading: "border-state-warning/40 bg-state-warning/10 text-state-warning",
+  ok: "border-state-running/40 bg-state-running/10 text-state-running",
+  broken: "border-state-conflict/50 bg-state-conflict/10 text-state-conflict",
+  unavailable: "border-ink-700 bg-ink-950 text-state-inactive",
 };
 
 const LABEL: Record<ChainStatus, string> = {
@@ -63,11 +63,11 @@ export function ChainBadge({ workspaceId, eventsLen }: { workspaceId: string; ev
   }, [isMock, eventsLen, verify]);
 
   if (isMock) {
-    return <span className="rounded-sm border border-ink-700 bg-ink-950 px-1.5 py-0.5 font-mono text-[10px] text-muted/50">chain · mock</span>;
+    return <span className="rounded-sm border border-state-orchestration/40 bg-state-orchestration/10 px-1.5 py-0.5 text-[10px] text-state-orchestration">chain · mock</span>;
   }
 
   if (eventsLen === 0) {
-    return <span className="rounded-sm border border-ink-700 bg-ink-950 px-1.5 py-0.5 font-mono text-[10px] text-muted/50">chain · empty</span>;
+    return <span className="rounded-sm border border-ink-700 bg-ink-950 px-1.5 py-0.5 text-[10px] text-state-inactive">chain · empty</span>;
   }
 
   const suffix =
@@ -79,7 +79,7 @@ export function ChainBadge({ workspaceId, eventsLen }: { workspaceId: string; ev
 
   return (
     <span
-      className={`rounded-sm border px-1.5 py-0.5 font-mono text-[10px] ${STYLE[status]}`}
+      className={`rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold ${STYLE[status]} ${status === "ok" ? "verification-land" : ""}`}
       title={
         detail
           ? detail

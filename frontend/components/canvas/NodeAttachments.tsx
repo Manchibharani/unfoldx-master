@@ -42,7 +42,7 @@ export function NodeAttachments({
           type="button"
           disabled={busy || disabled}
           onClick={() => inputRef.current?.click()}
-          className="inline-flex items-center gap-1 rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[10px] font-medium text-muted transition-colors hover:text-parchment disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[10px] font-medium text-state-inactive hover:text-parchment disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? "Reading…" : "Attach files"}
         </button>

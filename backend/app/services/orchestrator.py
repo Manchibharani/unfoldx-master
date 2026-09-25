@@ -405,6 +405,12 @@ class Orchestrator:
             s.add(h)
             await s.commit()
         await self._set(sub.id, status="completed", result_summary=summary[:1000], finished_at=_now())
+        # Raw agent output for this subtask, emitted alongside (and never instead of) the
+        # structured handoff below: final_text is the CLI's `result` text when it produced one,
+        # otherwise the runner's captured tail of the log buffer.
+        await self.ctx.events.append(ws, "agent_output", {
+            "subtask": sub.title, "text": outcome.final_text[:8000], "truncated": len(outcome.final_text) > 8000,
+            "simulated": outcome.simulated, "structured": parsed is not None}, **ident)
         await self.ctx.events.append(ws, "handoff_emitted", {
             "handoff_id": h.id, "subtask": sub.title, "summary": summary, "decisions": h.decisions,
             "constraints": h.constraints, "rejected_approaches": h.rejected_approaches, "files_touched": files,
@@ -549,6 +555,8 @@ class Orchestrator:
             for r in list(ws.values()):
                 if r.handle:
                     await self.ctx.adapters[r.provider].stop(r.handle)
-        for rt in list(self.tasks.values()):
-            if rt.main:
-                rt.main.cancel()
+        tasks = [rt.main for rt in self.tasks.values() if rt.main]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)

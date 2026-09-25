@@ -21,11 +21,11 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
 };
 
 export const PROVIDER_ACCENT: Record<Provider, string> = {
-  bob: "#D9A441",
-  claude_code: "#4FB8A6",
-  codex: "#8D7BE0",
-  gemini: "#8A93A6",
-  system: "#8A93A6",
+  bob: "#9585E8",
+  claude_code: "#A4ADBA",
+  codex: "#A4ADBA",
+  gemini: "#A4ADBA",
+  system: "#A4ADBA",
 };
 
 export const PROVIDER_CAPABILITIES: Record<Provider, string[]> = {
@@ -181,6 +181,11 @@ export interface HubModel {
   activeProvider: Provider | null;
 }
 
+export type HubSelection =
+  | { kind: "agent"; id: string }
+  | { kind: "subtask"; id: string }
+  | null;
+
 const MAX_ACTIVITY = 14;
 
 function freshAgent(id: string, provider: Provider, label: string, builtIn: boolean): AgentState {
@@ -218,6 +223,11 @@ function line(
   text: string
 ): ActivityLine {
   return { id: `${event.id}-${kind}`, at: event.ts, kind, text };
+}
+
+function stringField(payload: Record<string, unknown>, key: string, fallback: string): string {
+  const value = payload[key];
+  return typeof value === "string" ? value : fallback;
 }
 
 function subtaskFor(
@@ -306,7 +316,7 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
   for (const event of events) {
     activeProvider = event.provider;
     if (event.task_id) currentTaskId = event.task_id;
-    const p = event.payload as Record<string, any>;
+    const p = event.payload;
 
     if (event.provider === "bob") {
       bob.connected = true;
@@ -378,19 +388,19 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
           st.agentId = event.agent_id ?? null;
           st.routeReason = typeof p.reason === "string" ? p.reason : null;
         }
-        pushActivity(bob, line(event, "route", `→ ${p.agent ?? event.provider}: ${p.reason ?? ""}`));
+        pushActivity(bob, line(event, "route", `→ ${stringField(p, "agent", event.provider)}: ${stringField(p, "reason", "")}`));
         break;
       }
       case "dispatch_started": {
         const st = subtaskFor(event, subtasks);
         if (st) st.status = "running";
         const holder = event.provider === "bob" ? bob : byProvider.get(event.provider)?.[0];
-        if (holder) pushActivity(holder, line(event, "command", p.command ?? "dispatch started"));
+        if (holder) pushActivity(holder, line(event, "command", stringField(p, "command", "dispatch started")));
         break;
       }
       case "log_line": {
         const holder = event.provider === "bob" ? bob : byProvider.get(event.provider)?.[0];
-        if (holder) pushActivity(holder, line(event, "log", p.line ?? "…"));
+        if (holder) pushActivity(holder, line(event, "log", stringField(p, "line", "…")));
         break;
       }
       case "handoff_emitted": {
@@ -411,21 +421,21 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
         const st = subtaskFor(event, subtasks);
         if (st) st.status = "done";
         const holder = event.provider === "bob" ? bob : byProvider.get(event.provider)?.[0];
-        if (holder) pushActivity(holder, line(event, "result", p.summary ?? "task completed"));
+        if (holder) pushActivity(holder, line(event, "result", stringField(p, "summary", "task completed")));
         break;
       }
       case "conflict_detected": {
         const st = subtaskFor(event, subtasks) ?? lastRunning(subtasks);
         if (st) st.conflict = true;
         const holder = event.provider === "bob" ? bob : byProvider.get(event.provider)?.[0];
-        if (holder) pushActivity(holder, line(event, "status", p.detail ?? "conflict detected"));
+        if (holder) pushActivity(holder, line(event, "status", stringField(p, "detail", "conflict detected")));
         break;
       }
       case "authorization_denied": {
         const st = subtaskFor(event, subtasks);
         if (st) st.status = "blocked";
         const holder = event.provider === "bob" ? bob : byProvider.get(event.provider)?.[0];
-        if (holder) pushActivity(holder, line(event, "status", p.detail ?? "action denied by role"));
+        if (holder) pushActivity(holder, line(event, "status", stringField(p, "detail", "action denied by role")));
         break;
       }
       case "budget_update": {
@@ -444,7 +454,7 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
       }
       case "error": {
         const holder = event.provider === "bob" ? bob : byProvider.get(event.provider)?.[0];
-        if (holder) pushActivity(holder, line(event, "status", p.message ?? "error"));
+        if (holder) pushActivity(holder, line(event, "status", stringField(p, "message", "error")));
         break;
       }
       default:

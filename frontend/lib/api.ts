@@ -57,7 +57,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}, auth = true): P
     const token = getAccessToken();
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
-  let body = init.body;
+  const body = init.body;
   if (body && !(body instanceof FormData) && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
@@ -118,7 +118,8 @@ export interface MeResult {
   id: string;
   email: string;
   name: string;
-  guest: boolean;
+  /** /me always includes this; /register does not. */
+  guest?: boolean;
 }
 
 /** GET /api/workspaces/{id} — includes this caller's role in the workspace. */

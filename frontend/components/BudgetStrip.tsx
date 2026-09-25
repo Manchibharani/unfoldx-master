@@ -63,47 +63,47 @@ export function BudgetStrip({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-2">
       {entries.map((e) => {
         const pct = e.capUsd > 0 ? Math.min(100, (e.spentUsd / e.capUsd) * 100) : 0;
         return (
-          <div key={e.provider} className="rounded-md border border-ink-700 bg-ink-900 px-3 py-2">
+          <div key={e.provider} className="rounded-sm border border-ink-700 bg-ink-950/60 px-2.5 py-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-1.5">
                 <ProviderBadge provider={e.provider} />
                 {e.agentCount > 1 && (
-                  <span className="whitespace-nowrap rounded-sm bg-ink-800 px-1 py-0.5 font-mono text-[9px] text-muted/80">
+                  <span className="whitespace-nowrap rounded-sm bg-ink-800 px-1 py-0.5 text-[9px] text-muted">
                     ×{e.agentCount}
                   </span>
                 )}
               </div>
-              <span className="shrink-0 font-mono text-[11px] text-muted">
+              <span className="shrink-0 text-[11px] tabular-nums text-parchment/90">
                 ${e.spentUsd.toFixed(3)} / {e.capUsd > 0 ? `$${e.capUsd.toFixed(2)}` : "—"}
               </span>
             </div>
 
             {e.agentCount > 1 && (
-              <p className="mt-1 truncate text-[10px] text-muted/50" title={e.labels.join(", ")}>
+              <p className="mt-1 truncate text-[10px] text-muted" title={e.labels.join(", ")}>
                 {e.labels.join(", ")}
               </p>
             )}
 
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-700">
               <div
-                className={`h-full rounded-full transition-[width] duration-500 ${
-                  e.breakerTripped ? "bg-ledger-coral" : "bg-ledger-teal"
+                className={`h-full rounded-full ${
+                  e.breakerTripped ? "bg-state-conflict" : "bg-state-running"
                 }`}
                 style={{ width: `${pct}%` }}
               />
             </div>
 
             <div className="mt-1 flex items-center justify-between text-[10px] text-muted/70">
-              <span>{e.connected ? "connected" : "not connected"}</span>
-              <span className="font-mono">{e.tokensUsed.toLocaleString()} tok</span>
+              <span className={e.connected ? "text-state-running" : "text-state-inactive"}>{e.connected ? "connected" : "not connected"}</span>
+              <span className="tabular-nums">{e.tokensUsed.toLocaleString()} tok</span>
             </div>
 
             {e.breakerTripped && (
-              <p className="mt-1 text-[10px] text-ledger-coral">circuit breaker tripped — dispatch paused</p>
+              <p className="mt-1 text-[10px] text-state-conflict">circuit breaker tripped — dispatch paused</p>
             )}
           </div>
         );

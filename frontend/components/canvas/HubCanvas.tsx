@@ -15,14 +15,19 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { LAYOUT, PROVIDER_ACCENT, type HubModel } from "@/lib/graph";
+import { LAYOUT, PROVIDER_ACCENT, type HubModel, type HubSelection } from "@/lib/graph";
 import type { ControlAction } from "@/lib/useOrchestration";
 import type { Permissions } from "@/lib/permissions";
 import { AgentNode, HubNode, SubtaskNode } from "./HubNodes";
 
 const nodeTypes = { agent: AgentNode, hub: HubNode, subtask: SubtaskNode };
 
-function buildFlow(model: HubModel, permissions: Permissions, onAction: (action: ControlAction) => void) {
+function buildFlow(
+  model: HubModel,
+  permissions: Permissions,
+  onAction: (action: ControlAction) => void,
+  selection: HubSelection
+) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
@@ -30,6 +35,7 @@ function buildFlow(model: HubModel, permissions: Permissions, onAction: (action:
     nodes.push({
       id: `subtask-${subtask.id}`,
       type: "subtask",
+      selected: selection?.kind === "subtask" && selection.id === subtask.id,
       position: { x: LAYOUT.subtaskX, y: i * LAYOUT.subtaskGap },
       data: { subtask, onAction, permissions },
     });
@@ -46,6 +52,7 @@ function buildFlow(model: HubModel, permissions: Permissions, onAction: (action:
   nodes.push({
     id: "hub-bob",
     type: "hub",
+    selected: selection?.kind === "agent" && selection.id === "hub-bob",
     position: { x: LAYOUT.hubX, y: hubY },
     data: { agent: model.bob, subtaskCount: model.subtasks.length, onAction, permissions },
   });
@@ -54,6 +61,7 @@ function buildFlow(model: HubModel, permissions: Permissions, onAction: (action:
     nodes.push({
       id: agent.id,
       type: "agent",
+      selected: selection?.kind === "agent" && selection.id === agent.id,
       position: { x: LAYOUT.agentX, y: i * LAYOUT.agentGap },
       data: { agent, onAction, permissions },
     });
@@ -62,16 +70,22 @@ function buildFlow(model: HubModel, permissions: Permissions, onAction: (action:
   model.subtasks.forEach((subtask) => {
     if (!subtask.provider) return;
     const target = subtask.provider === "bob" ? "hub-bob" : `agent-${subtask.provider}`;
-    const accent = PROVIDER_ACCENT[subtask.provider];
     const running = subtask.status === "running";
+    const handedOff = subtask.status === "done";
+    const conflict = subtask.conflict;
+    const color = conflict ? "#EA7568" : running || handedOff ? "#4FB8A6" : "#9585E8";
     edges.push({
       id: `route-${subtask.id}`,
       source: `subtask-${subtask.id}`,
       target,
       type: "smoothstep",
       animated: running,
-      style: { stroke: running ? accent : "#2B3651", strokeWidth: running ? 2 : 1 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: accent, width: 14, height: 14 },
+      className: handedOff ? "handoff-edge" : undefined,
+      label: conflict ? "CONFLICT" : running ? "ROUTING" : handedOff ? "HANDOFF" : undefined,
+      labelStyle: { fill: color, fontSize: 9, fontWeight: 600 },
+      labelBgStyle: { fill: "#0B0F17", fillOpacity: 0.9 },
+      style: { stroke: color, strokeWidth: running || handedOff || conflict ? 2 : 1 },
+      markerEnd: { type: MarkerType.ArrowClosed, color, width: 14, height: 14 },
     });
   });
 
@@ -81,9 +95,9 @@ function buildFlow(model: HubModel, permissions: Permissions, onAction: (action:
       source: conn.source,
       target: conn.target,
       type: "smoothstep",
-      animated: true,
-      style: { stroke: "#8D7BE0", strokeWidth: 1.5 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#8D7BE0", width: 14, height: 14 },
+      animated: false,
+      style: { stroke: "#9585E8", strokeWidth: 1.5 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#9585E8", width: 14, height: 14 },
     });
   }
 
@@ -95,7 +109,7 @@ function mergeNodes(current: Node[], next: Node[]): Node[] {
   const byId = new Map(current.map((n) => [n.id, n]));
   return next.map((n) => {
     const existing = byId.get(n.id);
-    return existing ? { ...n, position: existing.position, selected: existing.selected } : n;
+    return existing ? { ...n, position: existing.position, selected: n.selected ?? existing.selected } : n;
   });
 }
 
@@ -103,12 +117,19 @@ export function HubCanvas({
   model,
   permissions,
   onAction,
+  selection,
+  onSelectionChange,
 }: {
   model: HubModel;
   permissions: Permissions;
   onAction: (action: ControlAction) => void;
+  selection: HubSelection;
+  onSelectionChange: (selection: HubSelection) => void;
 }) {
-  const derived = useMemo(() => buildFlow(model, permissions, onAction), [model, permissions, onAction]);
+  const derived = useMemo(
+    () => buildFlow(model, permissions, onAction, selection),
+    [model, permissions, onAction, selection]
+  );
   const [nodes, setNodes, onNodesChange] = useNodesState(derived.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(derived.edges);
   const [connecting, setConnecting] = useState(false);
@@ -156,12 +177,23 @@ export function HubCanvas({
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
         onEdgesDelete={onEdgesDelete}
+        onNodeClick={(_, node) => {
+          if (node.type === "hub") onSelectionChange({ kind: "agent", id: "hub-bob" });
+          else if (node.type === "agent") onSelectionChange({ kind: "agent", id: node.id });
+          else if (node.type === "subtask") onSelectionChange({ kind: "subtask", id: node.id.replace(/^subtask-/, "") });
+        }}
+        onEdgeClick={(_, edge) => {
+          if (edge.id.startsWith("route-")) {
+            onSelectionChange({ kind: "subtask", id: edge.id.slice("route-".length) });
+          }
+        }}
+        onPaneClick={() => onSelectionChange(null)}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2}
         maxZoom={1.6}
         connectionRadius={44}
-        connectionLineStyle={{ stroke: "#8D7BE0", strokeWidth: 1.5, strokeDasharray: "5 5" }}
+        connectionLineStyle={{ stroke: "#9585E8", strokeWidth: 1.5, strokeDasharray: "5 5" }}
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#1F283B" />
@@ -178,7 +210,7 @@ export function HubCanvas({
       </ReactFlow>
 
       {connecting && (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-sm border border-ledger-violet/40 bg-ink-900/90 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-ledger-violet shadow-lg backdrop-blur">
+        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-sm border border-state-orchestration/40 bg-ink-900/90 px-3 py-1.5 text-[10px] uppercase tracking-wide text-state-orchestration shadow-lg backdrop-blur">
           Release over another node to wire them together
         </div>
       )}

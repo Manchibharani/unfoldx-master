@@ -9,11 +9,11 @@ const COPY: Record<ConnectionState, string> = {
 };
 
 const DOT: Record<ConnectionState, string> = {
-  connecting: "bg-ledger-gold animate-pulse",
-  connected: "bg-ledger-teal",
-  reconnecting: "bg-ledger-gold animate-pulse",
-  offline: "bg-ledger-coral",
-  mock: "bg-ledger-violet",
+  connecting: "bg-state-warning",
+  connected: "bg-state-running",
+  reconnecting: "bg-state-warning",
+  offline: "bg-state-inactive",
+  mock: "bg-state-orchestration",
 };
 
 export function ConnectionStatus({ state }: { state: ConnectionState }) {

@@ -48,7 +48,7 @@ export function FileChips({
               type="button"
               title="Remove file"
               onClick={() => onDetach(f.id)}
-              className="shrink-0 px-0.5 text-muted transition-colors hover:text-ledger-coral"
+              className="shrink-0 px-0.5 text-state-inactive hover:text-state-conflict"
             >
               ×
             </button>
