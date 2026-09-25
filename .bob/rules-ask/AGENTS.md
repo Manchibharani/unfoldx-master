@@ -8,3 +8,5 @@
 - Bob Plan-mode planning is the primary decomposition path; `heuristic_plan()` in `app/services/planning.py` is only the fallback and is less capable.
 - The `WorkspaceEvent` Pydantic schema in `app/schemas.py` mirrors the frontend `lib/types.ts` — keep them in sync when changing event fields.
 - `auth_mode=open` with `open_mode_role=approve` (the defaults) means the demo workspace is fully writable without authentication — this is intentional for demos, not a security bug.
+- Frontend is a **Next.js 14 App Router** app (`frontend/app/`). The `@/*` path alias resolves to `frontend/*`.
+- `frontend/lib/useWorkspaceSocket.ts` handles WebSocket reconnection and event replay; `ws_replay_default` is 200 events on reconnect.

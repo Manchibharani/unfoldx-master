@@ -9,3 +9,5 @@
 - Subtask status transitions: `pending → blocked → running → paused_budget → completed/failed/cancelled`. `blocked` means unsatisfied `depends_on`; `paused_budget` means budget cap hit mid-run.
 - Planning always uses Bob **plan mode** (`bob_plan_cmd`), not execute mode. If Bob is unavailable, `heuristic_plan()` produces a static decomposition — it cannot call any external service.
 - `Settings` is constructed with `model_validator(mode="after")` which creates `data_dir`, generates `secret_key`, and derives `database_url` at construction time. Any code path that modifies these after construction will not be persisted.
+- **Frontend and backend are completely separate deployments.** The frontend is a static Next.js App Router app; it communicates with the backend only via HTTP REST (`/api/*`) and WebSocket (`/ws/*`). No server-side Python is involved in the Next.js build.
+- `frontend/lib/types.ts` is the **only** shared type contract between frontend and backend. When the backend wire format changes, this file must be updated — there is no code-generation step.
