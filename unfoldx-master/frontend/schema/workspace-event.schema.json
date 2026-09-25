@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkspaceEvent",
+  "description": "One frame sent over the workspace WebSocket. Every agent action, routing decision, budget change, and handoff is one of these, appended to the hash-chained provenance log.",
+  "type": "object",
+  "required": ["id", "workspace_id", "seq", "provider", "event_type", "ts", "prev_hash", "hash", "signature", "payload"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "workspace_id": { "type": "string" },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic per-workspace sequence number. Ordering source for the event chain."
+    },
+    "task_id": { "type": ["string", "null"] },
+    "subtask_id": { "type": ["string", "null"] },
+    "agent_id": { "type": ["string", "null"] },
+    "provider": {
+      "type": "string",
+      "enum": ["bob", "claude_code", "codex", "gemini", "system"]
+    },
+    "model": {
+      "type": ["string", "null"],
+      "description": "Model identifier the provider ran with, if known."
+    },
+    "session_id": {
+      "type": ["string", "null"],
+      "description": "Provider session this event belongs to, if tracked."
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "provider_connected",
+        "task_submitted",
+        "plan_decomposed",
+        "route_decided",
+        "conflict_checked",
+        "conflict_detected",
+        "dispatch_started",
+        "log_line",
+        "budget_update",
+        "circuit_breaker_triggered",
+        "handoff_emitted",
+        "authorization_denied",
+        "task_completed",
+        "error"
+      ]
+    },
+    "ts": { "type": "string", "format": "date-time" },
+    "prev_hash": {
+      "type": "string",
+      "description": "Hash of the previous event in this workspace's chain. Empty string for the first event."
+    },
+    "hash": {
+      "type": "string",
+      "description": "Hash of this event, e.g. sha256(id + prev_hash + canonical_json(payload))."
+    },
+    "signature": {
+      "type": "string",
+      "description": "Backend signature over the canonical event bytes. Required on every event."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Shape depends on event_type — see README.md for the field expected per type."
+    },
+    "cost_delta": { "type": "number" },
+    "tokens_delta": { "type": "number" }
+  }
+}

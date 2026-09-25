@@ -1,0 +1,28 @@
+# docker compose up --build   ->  API :8000, canvas sync :1234, Postgres, Redis
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: uaw, POSTGRES_PASSWORD: uaw, POSTGRES_DB: uaw }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U uaw"], interval: 3s, retries: 20 }
+  redis:
+    image: redis:7-alpine
+  api:
+    build: .
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://uaw:uaw@postgres:5432/uaw
+      REDIS_URL: redis://redis:6379/0
+      DATA_DIR: /srv/data
+    ports: ["8000:8000"]
+    volumes: [apidata:/srv/data]
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
+  hocuspocus:
+    image: node:20-alpine
+    working_dir: /app
+    volumes: ["./hocuspocus:/app"]
+    command: sh -c "npm install --no-audit --no-fund && node server.js"
+    environment: { BACKEND_URL: "http://api:8000", PORT: "1234" }
+    ports: ["1234:1234"]
+    depends_on: [api]
+volumes: { pgdata: {}, apidata: {} }

@@ -1,0 +1,42 @@
+# --- OS ---
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Editors / IDE ---
+.idea/
+.vscode/
+*.iml
+
+# --- Python (backend) ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.eggs/
+build/
+dist/
+backend/hocuspocus/node_modules/
+
+# Backend runtime state: SQLite DB, auto-generated secret key, per-workspace sandboxes
+backend/data/
+
+# --- Node / Next.js (frontend) ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# --- Env / secrets ---
+.env
+.env.local
+.env.*
+!.env.example
+
+# --- Logs ---
+*.log

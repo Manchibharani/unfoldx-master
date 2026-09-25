@@ -1,0 +1,161 @@
+{
+  "description": "Canonical event: one per WebSocket frame. Mirror of frontend lib/types.ts.",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "workspace_id": {
+      "title": "Workspace Id",
+      "type": "string"
+    },
+    "seq": {
+      "description": "Gapless per-workspace sequence number",
+      "title": "Seq",
+      "type": "integer"
+    },
+    "ts": {
+      "description": "ISO-8601 UTC timestamp",
+      "title": "Ts",
+      "type": "string"
+    },
+    "event_type": {
+      "enum": [
+        "provider_connected",
+        "task_submitted",
+        "plan_decomposed",
+        "route_decided",
+        "conflict_detected",
+        "dispatch_started",
+        "log_line",
+        "budget_update",
+        "circuit_breaker_triggered",
+        "handoff_emitted",
+        "authorization_denied",
+        "task_completed",
+        "error"
+      ],
+      "title": "Event Type",
+      "type": "string"
+    },
+    "agent_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Agent Id"
+    },
+    "task_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Task Id"
+    },
+    "subtask_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Subtask Id"
+    },
+    "provider": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "session_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Session Id"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Payload",
+      "type": "object"
+    },
+    "cost_delta": {
+      "default": 0.0,
+      "title": "Cost Delta",
+      "type": "number"
+    },
+    "tokens_delta": {
+      "default": 0,
+      "title": "Tokens Delta",
+      "type": "integer"
+    },
+    "prev_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "title": "Prev Hash",
+      "type": "string"
+    },
+    "hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "title": "Hash",
+      "type": "string"
+    },
+    "signature": {
+      "description": "HMAC-SHA256(server key, hash)",
+      "maxLength": 64,
+      "minLength": 64,
+      "title": "Signature",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "workspace_id",
+    "seq",
+    "ts",
+    "event_type",
+    "prev_hash",
+    "hash",
+    "signature"
+  ],
+  "title": "WorkspaceEvent",
+  "type": "object"
+}

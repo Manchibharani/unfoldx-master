@@ -1,0 +1,130 @@
+"""Runs one agent process and turns its output into canonical events + budget accounting.
+
+Pipeline per line: adapter.parse_line -> AgentEvent -> log_line / budget_update / circuit_breaker ...
+appended to the hash-chained log (which fans out over Redis/WebSocket)."""
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+from typing import Awaitable, Callable
+
+from ..adapters.base import AdapterUnavailable, RunHandle, RunRequest
+from ..catalog import estimate_cost
+from ..models import Agent
+
+log = logging.getLogger("uaw.runner")
+MAX_LINE = 2000
+MAX_BUFFER = 200_000
+
+
+@dataclass
+class RunOutcome:
+    ok: bool = False
+    final_text: str = ""
+    files: list[str] = field(default_factory=list)
+    cost_usd: float = 0.0
+    tokens: int = 0
+    tripped: bool = False
+    stopped: bool = False
+    error: str | None = None
+    session_id: str = ""
+    simulated: bool = False
+
+
+class AgentRunner:
+    def __init__(self, ctx):
+        self.ctx = ctx
+
+    async def run(self, *, ws_id: str, task_id: str | None, subtask_id: str | None, agent: Agent, req: RunRequest,
+                  on_handle: Callable[[RunHandle], None] | None = None,
+                  on_file: Callable[[str], Awaitable[None]] | None = None) -> RunOutcome:
+        ctx = self.ctx
+        adapter = ctx.adapters[agent.provider]
+        out = RunOutcome(session_id=req.session_id)
+        conn = await ctx.entitlement.get_conn(ws_id, agent.provider)
+        if conn is None:
+            out.error = f"{adapter.display_name} is not connected to this workspace"
+            return out
+        env, keep_home = ctx.entitlement.credential_env(conn, adapter)
+        req.env, req.home = env, ctx.settings.workspaces_root / ws_id / "home" / agent.provider
+        ident = dict(agent_id=agent.id, task_id=task_id, subtask_id=subtask_id, provider=agent.provider,
+                     model=req.model or agent.model, session_id=req.session_id)
+        try:
+            handle = await adapter.start(req, keep_host_home=keep_home)
+        except AdapterUnavailable as e:
+            out.error = str(e)
+            return out
+        except OSError as e:
+            out.error = f"could not start {adapter.display_name}: {e}"
+            return out
+        out.simulated = handle.simulated
+        if on_handle:
+            on_handle(handle)
+        await ctx.budget.record(ws_id, agent.provider, requests=1)
+        await ctx.events.append(ws_id, "dispatch_started", {
+            "command": handle.command_display, "agent": agent.name, "provider": agent.provider, "mode": req.mode,
+            "simulated": handle.simulated, "title": req.title}, **ident)
+
+        counted = 0.0
+        buffer: list[str] = []
+        buf_len = 0
+        result_text = ""
+        error_seen: str | None = None
+        gen = adapter.stream(handle, req)
+        try:
+            async for ev in gen:
+                if ev.kind == "log":
+                    txt = ev.text[:MAX_LINE]
+                    if buf_len < MAX_BUFFER:
+                        buffer.append(ev.text)
+                        buf_len += len(ev.text)
+                    payload = {"line": txt, "stream": ev.stream}
+                    if handle.simulated:
+                        payload["simulated"] = True
+                    await ctx.events.append(ws_id, "log_line", payload, **ident)
+                elif ev.kind in ("usage", "cost_total"):
+                    if ev.kind == "usage":
+                        delta = estimate_cost(conn.pricing, ev.tokens_in, ev.tokens_out)
+                        tin, tout = ev.tokens_in, ev.tokens_out
+                    else:  # vendor-reported total: reconcile our running estimate to it
+                        delta, tin, tout = (ev.cost_usd or 0.0) - counted, 0, 0
+                    counted += delta
+                    out.cost_usd, out.tokens = counted, out.tokens + tin + tout
+                    st = await ctx.budget.record(ws_id, agent.provider, cost=delta, tokens_in=tin, tokens_out=tout)
+                    await ctx.events.append(ws_id, "budget_update", {
+                        "provider": agent.provider, "spent_usd": st["spent_usd"], "cap_usd": st["cap_usd"],
+                        "remaining_usd": st["remaining_usd"], "tokens_in": st["tokens_in"], "tokens_out": st["tokens_out"],
+                        "breaker": st["breaker_state"]}, cost_delta=delta, tokens_delta=tin + tout, **ident)
+                    if st["tripped_now"]:
+                        await ctx.events.append(ws_id, "circuit_breaker_triggered", {
+                            "provider": agent.provider, "spent_usd": st["spent_usd"], "cap_usd": st["cap_usd"],
+                            "detail": f"Stop-loss: {adapter.display_name} reached its ${st['cap_usd']:.2f} cap "
+                                      f"(${st['spent_usd']:.2f} spent). Process stopped; work paused until an approver overrides."},
+                            **ident)
+                    if st["breaker_state"] == "open":
+                        out.tripped = True
+                        await adapter.stop(handle)
+                        break
+                elif ev.kind == "file":
+                    for f in ev.files:
+                        if f not in out.files:
+                            out.files.append(f)
+                        if on_file:
+                            await on_file(f)
+                elif ev.kind == "result":
+                    result_text = ev.text or result_text
+                elif ev.kind == "error":
+                    error_seen = ev.text
+                    await ctx.events.append(ws_id, "error", {"message": ev.text[:MAX_LINE], "provider": agent.provider}, **ident)
+        finally:
+            await gen.aclose()
+            if handle.proc is not None and handle.proc.returncode is None:
+                await adapter.stop(handle)
+
+        out.stopped = handle.stop_requested and not out.tripped
+        out.final_text = result_text or "\n".join(buffer[-20:])
+        out.error = error_seen
+        out.ok = not (out.tripped or out.stopped or error_seen) and (handle.simulated or handle.exit_code in (0, None))
+        if not out.ok and not out.error and not (out.tripped or out.stopped):
+            out.error = f"{adapter.display_name} exited with code {handle.exit_code}"
+        return out
