@@ -1,5 +1,7 @@
 # Project Coding Rules (Non-Obvious Only)
 
+## Backend (`backend/`)
+
 - **Never** update or delete `EventLogEntry` rows — the log is append-only and hash-chained; breaks chain integrity.
 - Use `uid()` from `app/models.py` (not `str(uuid.uuid4())`) for all new primary keys and session IDs — it returns `uuid4().hex` (no hyphens).
 - Use `now()` from `app/models.py` for all `datetime` defaults — always UTC.
@@ -10,3 +12,12 @@
 - New tests must use the `make_client` fixture (synchronous `TestClient`), not `pytest-asyncio`. No `async def` test functions.
 - Do not call `get_settings()` in tests — construct `Settings(...)` directly with overrides (the `@lru_cache` makes it a singleton that leaks state between tests otherwise).
 - CLI command templates use `{prompt}` as a **single argv token** replaced by string substitution — never add shell metacharacters or extra quoting.
+- All modules begin with `from __future__ import annotations`. Relative imports within `app/` only. Logger names follow `uaw.<module>` convention.
+
+## Frontend (`frontend/`)
+
+- Frontend is a **static export** — no server components, no Next.js API routes. `"use client"` is required on every interactive component.
+- When adding a new `EventType` in `frontend/lib/types.ts`, also update the backend `Literal[...]` (see above) and `schema/workspace-event.schema.json`.
+- All REST calls must go through `apiFetch` in `lib/api.ts` — it handles bearer token attachment and `ApiError` wrapping. Do not call `fetch` directly.
+- WS JWT is in the query string (`?token=…`), not a header — browsers cannot set headers on WebSocket handshakes.
+- `@/` alias maps to `frontend/` root (tsconfig `paths`). TypeScript strict mode is on (`strict: true`).
