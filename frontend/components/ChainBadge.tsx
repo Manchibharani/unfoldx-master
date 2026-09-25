@@ -63,11 +63,11 @@ export function ChainBadge({ workspaceId, eventsLen }: { workspaceId: string; ev
   }, [isMock, eventsLen, verify]);
 
   if (isMock) {
-    return <span className="rounded-sm border border-state-orchestration/40 bg-state-orchestration/10 px-1.5 py-0.5 text-[10px] text-state-orchestration">chain · mock</span>;
+    return <span className="rounded-full border border-state-orchestration/40 bg-state-orchestration/10 px-2 py-0.5 text-[10px] font-medium text-state-orchestration">chain · mock</span>;
   }
 
   if (eventsLen === 0) {
-    return <span className="rounded-sm border border-ink-700 bg-ink-950 px-1.5 py-0.5 text-[10px] text-state-inactive">chain · empty</span>;
+    return <span className="rounded-full border border-ink-700 bg-ink-900/80 px-2 py-0.5 text-[10px] font-medium text-muted">chain · empty</span>;
   }
 
   const suffix =
@@ -79,7 +79,7 @@ export function ChainBadge({ workspaceId, eventsLen }: { workspaceId: string; ev
 
   return (
     <span
-      className={`rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold ${STYLE[status]} ${status === "ok" ? "verification-land" : ""}`}
+      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold backdrop-blur-sm ${STYLE[status]} ${status === "ok" ? "verification-land" : ""}`}
       title={
         detail
           ? detail

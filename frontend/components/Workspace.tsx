@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useWorkspaceSocket } from "@/lib/useWorkspaceSocket";
 import { buildHub, type HubSelection } from "@/lib/graph";
 import { useOrchestration } from "@/lib/useOrchestration";
@@ -19,7 +20,7 @@ import { Inspector } from "./Inspector";
 const HubCanvas = dynamic(() => import("./canvas/HubCanvas").then((m) => m.HubCanvas), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[560px] w-full items-center justify-center rounded-md border border-ink-700 bg-ink-950 text-sm text-muted">
+    <div className="flex h-full min-h-[560px] w-full items-center justify-center rounded-xl border border-ink-700 bg-ink-950 text-sm text-muted">
       Loading canvas…
     </div>
   ),
@@ -39,12 +40,26 @@ export function Workspace() {
     process.env.NEXT_PUBLIC_MOCK !== "1" &&
     connectionState === "connected" &&
     auth.permissions.canControl;
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 2xl:px-10 2xl:py-6">
+      {/* ── Header ─────────────────────────────────────────────── */}
       <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-parchment">UnfoldX</h1>
-          <p className="mt-1 font-mono text-[11px] text-muted">workspace/{WORKSPACE_ID}</p>
+        <div className="flex items-center gap-3">
+          {/* Brand mark */}
+          <Image
+            src="/logos/unfoldx.png"
+            alt=""
+            aria-hidden
+            width={36}
+            height={36}
+            unoptimized
+            className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+          />
+          <div>
+            <h1 className="text-base font-bold tracking-tight text-parchment">UnfoldX</h1>
+            <p className="font-mono text-[10px] text-muted">workspace/{WORKSPACE_ID}</p>
+          </div>
         </div>
 
         <div className="flex flex-col items-end gap-2">
@@ -60,14 +75,17 @@ export function Workspace() {
           />
           <div className="flex items-center gap-3">
             <ConnectionStatus state={connectionState} />
-            <span className="hidden text-[11px] tabular-nums text-state-inactive sm:inline">
+            <span className="hidden text-[11px] tabular-nums text-muted sm:inline">
               {hub.agents.length + 1} agents · {hub.subtasks.length} routes · {queue.length} controls
             </span>
           </div>
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-1 items-start gap-3 xl:grid-cols-[216px_minmax(0,1fr)_360px]">
+      {/* ── Main grid ─────────────────────────────────────────── */}
+      <div className="grid flex-1 grid-cols-1 items-start gap-3 xl:grid-cols-[220px_minmax(0,1fr)_368px]">
+
+        {/* Left column — Agent rail + Budget */}
         <div className="min-w-0 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
           <AgentRail
             agents={ledgerAgents}
@@ -77,14 +95,19 @@ export function Workspace() {
             onSelect={setSelection}
             onAction={send}
           />
-          <section className="mt-3 rounded-lg border border-ink-700 bg-ink-900/70 p-3">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Budget ledger</h2>
-            <BudgetStrip budgets={budgets} agents={ledgerAgents} />
+          <section className="mt-3 overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-card">
+            <div className="border-b border-ink-700 px-4 py-3">
+              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-state-info">Budget ledger</h2>
+            </div>
+            <div className="p-3">
+              <BudgetStrip budgets={budgets} agents={ledgerAgents} />
+            </div>
           </section>
         </div>
 
+        {/* Center column — Canvas + Ask Bob */}
         <section className="flex min-w-0 flex-col gap-3">
-          <div className="relative h-[62vh] min-h-[520px] overflow-hidden rounded-lg border border-ink-700 bg-ink-950 shadow-xl shadow-black/20">
+          <div className="relative h-[62vh] min-h-[520px] overflow-hidden rounded-xl border border-ink-700 bg-ink-950 shadow-[0_4px_32px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)]">
             <HubCanvas
               model={hub}
               permissions={auth.permissions}
@@ -99,14 +122,19 @@ export function Workspace() {
           <AskBob onAction={send} events={events} permissions={auth.permissions} />
         </section>
 
+        {/* Right column — Inspector */}
         <Inspector agents={ledgerAgents} selection={selection} subtasks={hub.subtasks} events={events} />
       </div>
 
-      <details className="rounded-md border border-ink-700 bg-ink-900/60">
-        <summary className="cursor-pointer px-3 py-2.5 text-xs font-medium text-muted hover:text-parchment">
+      {/* ── Event log (collapsible) ─────────────────────────── */}
+      <details className="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
+        <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-3 text-xs font-medium text-muted transition-colors hover:text-parchment">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden className="shrink-0 text-muted">
+            <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
           View execution details
         </summary>
-        <div className="border-t border-ink-700 p-3">
+        <div className="border-t border-ink-700 p-4">
           <EventFeed events={events} />
         </div>
       </details>

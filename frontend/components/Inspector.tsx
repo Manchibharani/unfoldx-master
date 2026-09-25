@@ -8,6 +8,7 @@ import { summarize } from "@/lib/eventSummary";
 import { FilesPanel } from "./FilesPanel";
 import { LivePreview } from "./LivePreview";
 import { OutputPanel } from "./OutputPanel";
+import { ProviderLogo } from "./ProviderLogo";
 
 type InspectorTab = "output" | "files" | "preview" | "activity";
 
@@ -40,31 +41,58 @@ function ContextSummary({
   events: WorkspaceEvent[];
 }) {
   if (agent) {
+    const accent = PROVIDER_ACCENT[agent.provider];
     return (
-      <div className="mb-3 border-b border-ink-700 pb-3">
+      <div className="mb-4 rounded-xl border border-ink-700 bg-ink-800/60 p-3">
         <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold" style={{ color: PROVIDER_ACCENT[agent.provider] }}>{agent.label}</p>
-            <p className="text-[10px] text-state-inactive">{PROVIDER_LABEL[agent.provider]} · {agent.connected ? "connected" : "offline"}</p>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <ProviderLogo provider={agent.provider} size={22} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold" style={{ color: accent }}>{agent.label}</p>
+              <p className="text-[10px] text-muted">{PROVIDER_LABEL[agent.provider]} · {agent.connected ? "connected" : "offline"}</p>
+            </div>
           </div>
-          <span className={`rounded-sm border px-1.5 py-0.5 text-[9px] font-medium uppercase ${agent.active ? "border-state-running/40 bg-state-running/10 text-state-running" : "border-ink-600 text-state-inactive"}`}>
+          <span
+            className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+              agent.active
+                ? "border-state-running/40 bg-state-running/10 text-state-running"
+                : "border-ink-600 bg-ink-800 text-muted"
+            }`}
+          >
             {agent.active ? "working" : agent.status}
           </span>
         </div>
-        <div className="mt-2 flex gap-4 text-[10px] text-state-inactive">
-          <span className="tabular-nums">${agent.spentUsd.toFixed(3)} spent</span>
-          <span className="tabular-nums">{agent.tokensUsed.toLocaleString()} tokens</span>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-ink-700 bg-ink-900 px-2.5 py-2 text-center">
+            <p className="text-sm font-semibold tabular-nums text-parchment">${agent.spentUsd.toFixed(3)}</p>
+            <p className="text-[9px] text-muted">spent</p>
+          </div>
+          <div className="rounded-lg border border-ink-700 bg-ink-900 px-2.5 py-2 text-center">
+            <p className="text-sm font-semibold tabular-nums text-parchment">{agent.tokensUsed.toLocaleString()}</p>
+            <p className="text-[9px] text-muted">tokens</p>
+          </div>
         </div>
-        {agent.capabilities.length > 0 && <p className="mt-2 text-[10px] text-muted/60">{agent.capabilities.join(" · ")}</p>}
+        {agent.capabilities.length > 0 && (
+          <p className="mt-2.5 text-[10px] text-muted/70">{agent.capabilities.join(" · ")}</p>
+        )}
       </div>
     );
   }
 
   if (!subtask) {
     return (
-      <div className="mb-3 border-b border-ink-700 pb-3">
-        <h2 className="text-sm font-semibold text-parchment">Workspace inspector</h2>
-        <p className="mt-1 text-[10px] text-muted/60">{events.length} events in the current workspace view</p>
+      <div className="mb-4 rounded-xl border border-ink-700 bg-ink-800/60 p-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent-indigo/20 to-accent-blue/20">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 3L3 8v8l9 5 9-5V8L12 3Z" stroke="#7C6EE8" strokeWidth="1.8" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-parchment">Workspace inspector</h2>
+            <p className="text-[10px] text-muted">{events.length} events in view</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -77,24 +105,32 @@ function ContextSummary({
   const handoffConstraints = handoff ? stringList(handoff.payload.constraints) : [];
 
   return (
-    <div className="mb-3 border-b border-ink-700 pb-3">
+    <div className="mb-4 rounded-xl border border-ink-700 bg-ink-800/60 p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-parchment">{subtask.label}</h2>
-          <p className="mt-1 text-[10px] text-state-inactive"><span className="font-mono">{subtask.id}</span> · {subtask.status}</p>
+          <p className="mt-0.5 text-[10px] text-muted"><span className="font-mono">{subtask.id}</span> · {subtask.status}</p>
         </div>
-        {subtask.provider && <span className="shrink-0 text-[10px]" style={{ color: PROVIDER_ACCENT[subtask.provider] }}>{PROVIDER_LABEL[subtask.provider]}</span>}
+        {subtask.provider && (
+          <span className="shrink-0 text-[10px] font-medium" style={{ color: PROVIDER_ACCENT[subtask.provider] }}>
+            {PROVIDER_LABEL[subtask.provider]}
+          </span>
+        )}
       </div>
-      {subtask.routeReason && <p className="mt-2 border-l border-state-orchestration/50 pl-2 text-[10px] leading-relaxed text-muted">{subtask.routeReason}</p>}
+      {subtask.routeReason && (
+        <p className="mt-2 border-l-2 border-state-orchestration/50 pl-2.5 text-[10px] leading-relaxed text-muted">
+          {subtask.routeReason}
+        </p>
+      )}
       {subtask.conflict && (
-        <div className="mt-2 rounded-sm border border-state-conflict/40 bg-state-conflict/10 px-2.5 py-2 text-[10px] text-state-conflict">
+        <div className="mt-2.5 rounded-lg border border-state-conflict/40 bg-state-conflict/10 px-3 py-2 text-[10px] text-state-conflict">
           <p className="font-semibold uppercase tracking-wide">Conflict detected</p>
           <p className="mt-1 text-parchment/80">{conflictDetail ?? "This route overlapped with in-flight work."}</p>
           {conflictPaths.length > 0 && <p className="mt-1 font-mono">{conflictPaths.join(" · ")}</p>}
         </div>
       )}
       {handoff && (
-        <div className="mt-2 rounded-sm border border-state-running/30 bg-state-running/5 px-2.5 py-2 text-[10px]">
+        <div className="mt-2.5 rounded-lg border border-state-running/30 bg-state-running/5 px-3 py-2 text-[10px]">
           <p className="font-semibold uppercase tracking-wide text-state-running">Handoff recorded</p>
           <p className="mt-1 text-muted/80">{handoffDecisions.length} decisions · {handoffConstraints.length} constraints · {subtask.filesTouched} files touched</p>
           {handoffDecisions.length > 0 && <p className="mt-1 text-parchment/80">{handoffDecisions.slice(0, 2).join(" · ")}</p>}
@@ -127,47 +163,57 @@ export function Inspector({
   }, [agent, events, subtask]);
 
   return (
-    <aside className="min-w-0 rounded-lg border border-ink-700 bg-ink-900/70 p-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
-      <ContextSummary agent={agent} subtask={subtask} events={relevantEvents} />
-      <div role="tablist" aria-label="Inspector views" className="mb-3 grid grid-cols-4 border-b border-ink-700">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.id}
-            onClick={() => setTab(item.id)}
-            className={`border-b-2 px-1 py-2 text-[10px] font-medium ${tab === item.id ? "border-state-orchestration text-state-orchestration" : "border-transparent text-muted hover:text-parchment"}`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+    <aside className="min-w-0 overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-card xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+      <div className="p-4">
+        <ContextSummary agent={agent} subtask={subtask} events={relevantEvents} />
 
-      <div role="tabpanel" className="min-h-48">
-        {tab === "output" && <OutputPanel events={relevantEvents} />}
-        {tab === "files" && <FilesPanel events={relevantEvents} />}
-        {tab === "preview" && <LivePreview />}
-        {tab === "activity" && (
-          <section>
-            <h3 className="mb-2 text-xs font-medium text-muted">Recent activity</h3>
-            {relevantEvents.length === 0 ? (
-              <p className="rounded-sm border border-dashed border-ink-700 px-3 py-4 text-[10px] text-muted/60">No activity for this selection yet.</p>
-            ) : (
-              <ol className="max-h-[58vh] overflow-y-auto">
-                {[...relevantEvents].reverse().slice(0, 100).map((event) => (
-                  <li key={event.id} className="grid grid-cols-[42px_minmax(0,1fr)] gap-2 border-b border-ink-700/70 py-2 last:border-0">
-                    <time className="text-[9px] tabular-nums text-state-inactive">{timeOf(event.ts)}</time>
-                    <div className="min-w-0">
-                      <p className="text-[9px] uppercase tracking-wide text-muted/60">{event.event_type.replace(/_/g, " ")}</p>
-                      <p className="break-words text-[10px] leading-relaxed text-parchment/80">{summarize(event)}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        )}
+        {/* Tab bar */}
+        <div role="tablist" aria-label="Inspector views" className="mb-4 grid grid-cols-4 gap-1 rounded-lg bg-ink-800 p-1">
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              onClick={() => setTab(item.id)}
+              className={`rounded-md px-1 py-1.5 text-[10px] font-medium transition-colors ${
+                tab === item.id
+                  ? "bg-ink-700 text-parchment shadow-sm"
+                  : "text-muted hover:text-parchment"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div role="tabpanel" className="min-h-48">
+          {tab === "output" && <OutputPanel events={relevantEvents} />}
+          {tab === "files" && <FilesPanel events={relevantEvents} />}
+          {tab === "preview" && <LivePreview />}
+          {tab === "activity" && (
+            <section>
+              <h3 className="mb-2.5 text-[11px] font-medium uppercase tracking-widest text-state-info">Recent activity</h3>
+              {relevantEvents.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-ink-700 px-4 py-5 text-center text-[10px] text-muted/60">
+                  No activity for this selection yet.
+                </p>
+              ) : (
+                <ol className="max-h-[58vh] overflow-y-auto">
+                  {[...relevantEvents].reverse().slice(0, 100).map((event) => (
+                    <li key={event.id} className="grid grid-cols-[44px_minmax(0,1fr)] gap-2 border-b border-ink-700/60 py-2.5 last:border-0">
+                      <time className="text-[9px] tabular-nums text-muted/60">{timeOf(event.ts)}</time>
+                      <div className="min-w-0">
+                        <p className="text-[9px] uppercase tracking-wide text-muted/50">{event.event_type.replace(/_/g, " ")}</p>
+                        <p className="break-words text-[10px] leading-relaxed text-parchment/80">{summarize(event)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          )}
+        </div>
       </div>
     </aside>
   );

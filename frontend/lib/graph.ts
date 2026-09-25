@@ -14,18 +14,18 @@ export const AGENT_PROVIDERS: Provider[] = ["claude_code", "codex", "gemini"];
 
 export const PROVIDER_LABEL: Record<Provider, string> = {
   bob: "Bob",
-  claude_code: "Claude Code",
-  codex: "Codex",
-  gemini: "Gemini",
+  claude_code: "Claude",
+  codex: "ChatGPT",
+  gemini: "Antigravity",
   system: "System",
 };
 
 export const PROVIDER_ACCENT: Record<Provider, string> = {
-  bob: "#9585E8",
-  claude_code: "#A4ADBA",
-  codex: "#A4ADBA",
-  gemini: "#A4ADBA",
-  system: "#A4ADBA",
+  bob: "#7C6EE8",
+  claude_code: "#D97B5A",
+  codex: "#19C37D",
+  gemini: "#3B8EE8",
+  system: "#8A96A8",
 };
 
 export const PROVIDER_CAPABILITIES: Record<Provider, string[]> = {

@@ -5,13 +5,13 @@ import type { MeResult, WorkspaceRole } from "@/lib/api";
 import type { AuthStatus } from "@/lib/useAuth";
 
 const ROLE_CHIP: Record<WorkspaceRole, string> = {
-  view: "border-ink-600 bg-ink-800 text-state-inactive",
+  view: "border-ink-600 bg-ink-800 text-muted",
   control: "border-state-running/40 bg-state-running/10 text-state-running",
   approve: "border-state-warning/40 bg-state-warning/10 text-state-warning",
 };
 
 const ROLE_DOT: Record<WorkspaceRole, string> = {
-  view: "bg-state-inactive",
+  view: "bg-muted",
   control: "bg-state-running",
   approve: "bg-state-warning",
 };
@@ -64,20 +64,20 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
   };
 
   const input =
-    "min-w-0 w-full rounded-sm border border-ink-600 bg-ink-800 px-2 py-1 text-[11px] text-parchment outline-none placeholder:text-muted focus:border-state-orchestration/60";
+    "min-w-0 w-full rounded-lg border border-ink-700 bg-ink-800 px-2.5 py-1.5 text-[11px] text-parchment outline-none placeholder:text-muted focus:border-accent-blue/50";
 
   return (
     <div className="flex flex-col items-end gap-1.5">
       <div className="flex items-center gap-2">
         <span
           title={!role && error ? error : undefined}
-          className="text-[10px] uppercase tracking-wide text-state-inactive"
+          className="text-[10px] uppercase tracking-wide text-muted"
         >
           {STATUS_LABEL[status]}
           {!role && error && <span className="ml-1 text-state-conflict">· no role</span>}
         </span>
         {role && (
-          <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${ROLE_CHIP[role]}`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${ROLE_CHIP[role]}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${ROLE_DOT[role]}`} />
             {role}
           </span>
@@ -88,7 +88,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             <button
               type="button"
               onClick={onLogout}
-              className="rounded-sm border border-ink-600 bg-ink-800 px-1.5 py-0.5 text-[10px] font-medium text-state-inactive hover:text-state-conflict"
+              className="rounded-lg border border-ink-600 bg-ink-800 px-2 py-0.5 text-[10px] font-medium text-muted hover:border-state-conflict/30 hover:text-state-conflict"
             >
               Sign out
             </button>
@@ -98,7 +98,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             type="button"
             onClick={() => setOpen((v) => !v)}
             disabled={status === "mock"}
-            className="rounded-sm border border-state-orchestration/50 bg-state-orchestration/10 px-2 py-0.5 text-[10px] font-medium text-state-orchestration disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg border border-accent-indigo/40 bg-accent-indigo/10 px-2.5 py-1 text-[10px] font-medium text-state-orchestration disabled:cursor-not-allowed disabled:opacity-40"
           >
             Sign in / Register
           </button>
@@ -106,12 +106,12 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
       </div>
 
       {open && (
-        <div className="w-72 rounded-md border border-ink-600 bg-ink-900 p-2.5 shadow-xl shadow-black/40">
-          <div className="mb-2 flex gap-1">
+        <div className="w-72 rounded-xl border border-ink-700 bg-ink-900 p-3 shadow-xl shadow-black/40">
+          <div className="mb-2.5 flex gap-1 rounded-lg bg-ink-800 p-1">
             <button
               type="button"
               onClick={() => setMode("login")}
-              className={`flex-1 rounded-sm px-2 py-1 text-[10px] font-medium ${
+              className={`flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${
                 mode === "login" ? "bg-ink-700 text-parchment" : "text-muted hover:text-parchment"
               }`}
             >
@@ -120,7 +120,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             <button
               type="button"
               onClick={() => setMode("register")}
-              className={`flex-1 rounded-sm px-2 py-1 text-[10px] font-medium ${
+              className={`flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${
                 mode === "register" ? "bg-ink-700 text-parchment" : "text-muted hover:text-parchment"
               }`}
             >
@@ -128,7 +128,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             </button>
           </div>
 
-          <form onSubmit={submit} className="flex flex-col gap-1.5">
+          <form onSubmit={submit} className="flex flex-col gap-2">
             {mode === "register" && (
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className={input} />
             )}
@@ -155,7 +155,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
                 <select
                   value={roleChoice}
                   onChange={(e) => setRoleChoice(e.target.value as WorkspaceRole)}
-                  className="flex-1 rounded-sm border border-ink-600 bg-ink-800 px-1.5 py-1 text-[10px] text-parchment outline-none focus:border-state-orchestration/60"
+                  className="flex-1 rounded-lg border border-ink-700 bg-ink-800 px-2 py-1.5 text-[10px] text-parchment outline-none focus:border-accent-blue/50"
                 >
                   <option value="view">view</option>
                   <option value="control">control</option>
@@ -165,7 +165,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             )}
 
             {error && (
-              <p className="max-h-16 overflow-y-auto border-l border-state-conflict/50 pl-2 text-[10px] leading-snug text-state-conflict">
+              <p className="max-h-16 overflow-y-auto border-l-2 border-state-conflict/50 pl-2 text-[10px] leading-snug text-state-conflict">
                 {error}
               </p>
             )}
@@ -173,7 +173,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             <button
               type="submit"
               disabled={busy}
-              className="rounded-sm border border-state-orchestration/50 bg-state-orchestration/10 px-2 py-1 text-[10px] font-medium text-state-orchestration disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-accent-indigo to-accent-blue px-3 py-1.5 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy ? (mode === "login" ? "Signing in…" : "Creating account…") : mode === "login" ? "Sign in" : "Create account & join"}
             </button>

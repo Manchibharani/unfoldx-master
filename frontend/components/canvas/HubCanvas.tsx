@@ -44,7 +44,7 @@ function buildFlow(
       source: "hub-bob",
       target: `subtask-${subtask.id}`,
       type: "smoothstep",
-      style: { stroke: "#2B3651", strokeDasharray: "4 4" },
+      style: { stroke: "#243357", strokeDasharray: "4 4" },
     });
   });
 
@@ -73,7 +73,7 @@ function buildFlow(
     const running = subtask.status === "running";
     const handedOff = subtask.status === "done";
     const conflict = subtask.conflict;
-    const color = conflict ? "#EA7568" : running || handedOff ? "#4FB8A6" : "#9585E8";
+    const color = conflict ? "#EA7568" : running || handedOff ? "#3ECFB2" : "#7C6EE8";
     edges.push({
       id: `route-${subtask.id}`,
       source: `subtask-${subtask.id}`,
@@ -96,8 +96,8 @@ function buildFlow(
       target: conn.target,
       type: "smoothstep",
       animated: false,
-      style: { stroke: "#9585E8", strokeWidth: 1.5 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#9585E8", width: 14, height: 14 },
+      style: { stroke: "#7C6EE8", strokeWidth: 1.5 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#7C6EE8", width: 14, height: 14 },
     });
   }
 
@@ -193,24 +193,24 @@ export function HubCanvas({
         minZoom={0.2}
         maxZoom={1.6}
         connectionRadius={44}
-        connectionLineStyle={{ stroke: "#9585E8", strokeWidth: 1.5, strokeDasharray: "5 5" }}
+        connectionLineStyle={{ stroke: "#7C6EE8", strokeWidth: 1.5, strokeDasharray: "5 5" }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#1F283B" />
-        <Controls showInteractive={false} className="!rounded-md !border !border-ink-700 !shadow-lg" />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#1A2847" />
+        <Controls showInteractive={false} className="!rounded-xl !border !border-ink-700 !shadow-lg" />
         <MiniMap
           pannable
           zoomable
           nodeColor={(n) =>
-            n.type === "hub" ? PROVIDER_ACCENT.bob : n.type === "agent" ? "#4FB8A6" : "#2B3651"
+            n.type === "hub" ? PROVIDER_ACCENT.bob : n.type === "agent" ? "#3ECFB2" : "#243357"
           }
-          maskColor="rgba(11, 15, 23, 0.7)"
-          className="!rounded-md !border !border-ink-700"
+          maskColor="rgba(8, 13, 24, 0.75)"
+          className="!rounded-xl !border !border-ink-700"
         />
       </ReactFlow>
 
       {connecting && (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-sm border border-state-orchestration/40 bg-ink-900/90 px-3 py-1.5 text-[10px] uppercase tracking-wide text-state-orchestration shadow-lg backdrop-blur">
+        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-xl border border-accent-indigo/40 bg-ink-900/90 px-4 py-2 text-[10px] uppercase tracking-wide text-state-orchestration shadow-xl backdrop-blur">
           Release over another node to wire them together
         </div>
       )}

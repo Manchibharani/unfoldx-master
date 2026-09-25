@@ -4,12 +4,33 @@
 
 html,
 body {
-  background-color: #0b0f17;
-  color: #e8e6de;
+  background-color: #080D18;
+  color: #E8EDF5;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* React Flow canvas background */
+.react-flow__renderer {
+  background-color: #080D18;
+}
+
+.react-flow__controls {
+  background-color: #0D1525 !important;
+}
+
+.react-flow__controls-button {
+  background-color: #0D1525 !important;
+  border-color: #1A2847 !important;
+  color: #8A96A8 !important;
+  fill: #8A96A8 !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: #121E33 !important;
+  fill: #E8EDF5 !important;
 }
 
 .handoff-edge .react-flow__edge-path {
@@ -27,18 +48,27 @@ body {
 }
 
 @keyframes verification-land {
-  from { transform: translateY(-2px); box-shadow: 0 0 0 0 rgb(79 184 166 / 0%); }
-  50% { box-shadow: 0 0 0 4px rgb(79 184 166 / 20%); }
-  to { transform: translateY(0); box-shadow: 0 0 0 0 rgb(79 184 166 / 0%); }
+  from { transform: translateY(-2px); box-shadow: 0 0 0 0 rgb(62 207 178 / 0%); }
+  50% { box-shadow: 0 0 0 4px rgb(62 207 178 / 20%); }
+  to { transform: translateY(0); box-shadow: 0 0 0 0 rgb(62 207 178 / 0%); }
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #2b3651;
-  border-radius: 4px;
+  background-color: #1A2847;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #243357;
 }
 
 @media (prefers-reduced-motion: reduce) {
