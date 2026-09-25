@@ -7,7 +7,7 @@ This file provides guidance to agents when working with code in this repository.
 | Directory | Purpose |
 |---|---|
 | `backend/` | Python 3.12 FastAPI orchestrator — source of truth for events/budget/RBAC |
-| `frontend/` | Next.js 14 TypeScript canvas — static export (`output: "export"`) |
+| `frontend/` | Next.js 14 TypeScript canvas — static export (`output: "export"`) built with the App Router |
 | `backend/hocuspocus/` | Separate Node.js Yjs collaborative-editing server (unrelated to Python API) |
 | `schema/` | JSON Schema for the wire-format event log (canonical language-agnostic reference) |
 
@@ -58,3 +58,7 @@ See `backend/AGENTS.md` for the full list. Critical summary:
 - The "gemini" provider in code maps to **Antigravity (`agy` CLI)**, not Google's own SDK.
 - `@/` path alias resolves to the `frontend/` root (configured in `tsconfig.json`).
 - All interactive components must include `"use client"` at the top (Next.js 14 App Router default is server components).
+- All API calls go through `apiFetch` in `frontend/lib/api.ts` — it attaches the bearer token automatically.
+- Auth token is stored under `uaw.access_token` in `localStorage`.
+- `backend/hocuspocus/` is a **separate Node.js process** — do not import from it in Python code.
+- Backend URL defaults to `http://localhost:8000`; override with `NEXT_PUBLIC_API_URL` in `.env.local`.

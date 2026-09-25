@@ -10,11 +10,16 @@
 - Bob Plan-mode planning is the primary decomposition path; `heuristic_plan()` in `app/services/planning.py` is only the fallback and is less capable.
 - The `WorkspaceEvent` Pydantic schema in `app/schemas.py` mirrors the frontend `lib/types.ts` — keep them in sync when changing event fields.
 - `auth_mode=open` with `open_mode_role=approve` (the defaults) means the demo workspace is fully writable without authentication — this is intentional for demos, not a security bug.
+- Bob Plan-mode planning is the primary decomposition path; `heuristic_plan()` in `app/services/planning.py` is only the fallback and is less capable.
+- The `WorkspaceEvent` Pydantic schema in `app/schemas.py` mirrors the frontend `lib/types.ts` — keep them in sync when changing event fields.
+- `auth_mode=open` with `open_mode_role=approve` (the defaults) means the demo workspace is fully writable without authentication — this is intentional for demos, not a security bug.
 
 ## Frontend
 
-- The frontend is a **static export** (`output: "export"`) — cannot use `getServerSideProps`, API routes, or any server-only Next.js features.
+- Frontend is a **Next.js 14 App Router** app (`frontend/app/`) built for a **static export** (`output: "export"`) — it cannot use `getServerSideProps`, API routes, or any server-only Next.js features.
+- `@/*` path alias resolves to `frontend/*`.
 - `NEXT_PUBLIC_MOCK=1` (the `.env.example` default) runs the built-in mock generator from `lib/mockEvents.ts`; no backend is needed.
 - `lib/types.ts` is the **canonical type contract** for the WebSocket wire format — the JSON Schema in `schema/workspace-event.schema.json` is the language-agnostic authoritative source.
-- The WS hook (`lib/useWorkspaceSocket.ts`) caps in-memory events at 500 and reconnects with exponential backoff (max 10 s). WebSocket replays up to `WS_REPLAY_DEFAULT` (default 200) events on reconnect from the backend DB.
+- `frontend/lib/useWorkspaceSocket.ts` handles WebSocket reconnection and event replay; `ws_replay_default` is 200 events on reconnect.
+- The WS hook caps in-memory events at 500 and reconnects with exponential backoff (max 10 s). WebSocket replays up to `WS_REPLAY_DEFAULT` (default 200) events on reconnect from the backend DB.
 - `NEXT_PUBLIC_BASE_PATH` is read by `next.config.mjs` to support GitHub Pages deployment with a sub-path prefix.
