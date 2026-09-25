@@ -41,6 +41,32 @@ export function Workspace() {
     connectionState === "connected" &&
     auth.permissions.canControl;
 
+  /**
+   * A run is in flight from its `task_submitted` until a terminal event. The
+   * orchestrator does not emit `task_completed` when a task fails — it appends an
+   * `error` carrying the final status — so both have to be treated as "settled",
+   * otherwise the toggle sticks on "Stop Demo" for a task that already died and
+   * the stop call is rejected with 409.
+   */
+  const demoRunning = useMemo(() => {
+    const TERMINAL = new Set(["failed", "completed", "stopped", "cancelled"]);
+    let running = false;
+    for (const e of events) {
+      if (e.event_type === "task_submitted") {
+        running = true;
+        continue;
+      }
+      const status = e.payload?.status;
+      if (
+        e.event_type === "task_completed" ||
+        (e.event_type === "error" && typeof status === "string" && TERMINAL.has(status))
+      ) {
+        running = false;
+      }
+    }
+    return running;
+  }, [events]);
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 2xl:px-10 2xl:py-6">
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -92,6 +118,7 @@ export function Workspace() {
             selection={selection}
             permissions={auth.permissions}
             demoEnabled={demoEnabled}
+            demoRunning={demoRunning}
             onSelect={setSelection}
             onAction={send}
           />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AgentState, HubSelection } from "@/lib/graph";
 import { PROVIDER_ACCENT, PROVIDER_LABEL } from "@/lib/graph";
 import type { Provider } from "@/lib/types";
@@ -9,6 +9,10 @@ import type { Permissions } from "@/lib/permissions";
 import { ProviderLogo } from "./ProviderLogo";
 
 const ADDABLE_PROVIDERS: Provider[] = ["bob", "claude_code", "codex", "gemini"];
+
+/** The judge scenario the demo button submits to the live backend. */
+const DEMO_PROMPT =
+  "Build a login API with FastAPI and a React dashboard, then add tests";
 
 function statusOf(agent: AgentState): { label: string; dot: string } {
   if (agent.breakerTripped || agent.status === "tripped" || agent.status === "stopped") {
@@ -25,6 +29,7 @@ export function AgentRail({
   selection,
   permissions,
   demoEnabled,
+  demoRunning = false,
   onSelect,
   onAction,
 }: {
@@ -32,10 +37,36 @@ export function AgentRail({
   selection: HubSelection;
   permissions: Permissions;
   demoEnabled: boolean;
+  demoRunning?: boolean;
   onSelect: (selection: HubSelection) => void;
   onAction: (action: ControlAction) => void;
 }) {
   const [provider, setProvider] = useState<Provider>("claude_code");
+
+  // Every node carries the latest task id, so the first one that has one can
+  // target the task-level stop endpoint.
+  const taskHolder = agents.find((a) => a.activeTaskId);
+  const canStop = Boolean(taskHolder?.activeTaskId);
+
+  /**
+   * `demoRunning` is derived from the event stream, so it lags the click by a
+   * round-trip — three fast clicks each read "not running" and submit three
+   * plans. This latch closes that window synchronously, releasing as soon as the
+   * run shows up in the log, or after a grace period if the submit never lands.
+   */
+  const [latched, setLatched] = useState(false);
+  const starting = latched && !demoRunning;
+  const running = demoRunning || latched;
+
+  useEffect(() => {
+    if (latched && demoRunning) setLatched(false);
+  }, [latched, demoRunning]);
+
+  useEffect(() => {
+    if (!latched) return;
+    const t = setTimeout(() => setLatched(false), 4000);
+    return () => clearTimeout(t);
+  }, [latched]);
 
   return (
     <aside className="min-w-0 overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-card">
@@ -108,13 +139,37 @@ export function AgentRail({
       <div className="px-3 pb-3">
         <button
           type="button"
-          disabled={!demoEnabled}
-          onClick={() => onAction({ kind: "submit_task", summary: "Build a login API with FastAPI and a React dashboard, then add tests" })}
-          title={demoEnabled ? "Submit the seeded judge scenario to the live backend" : "Requires control access and a connected live event stream"}
-          className="w-full rounded-lg border border-accent-indigo/30 bg-gradient-to-r from-accent-indigo/10 to-accent-blue/10 px-3 py-2.5 text-left text-xs font-semibold text-state-orchestration transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!demoEnabled || starting || (running && !canStop)}
+          onClick={() => {
+            if (running) {
+              if (!taskHolder?.activeTaskId) return;
+              onAction({
+                kind: "stop",
+                provider: taskHolder.provider,
+                taskId: taskHolder.activeTaskId,
+              });
+            } else {
+              setLatched(true);
+              onAction({ kind: "submit_task", summary: DEMO_PROMPT });
+            }
+          }}
+          title={
+            !demoEnabled
+              ? "Requires control access and a connected live event stream"
+              : running
+                ? "Stop the running demo task"
+                : "Submit the seeded judge scenario to the live backend"
+          }
+          className={`w-full rounded-lg border px-3 py-2.5 text-left text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            running
+              ? "border-state-conflict/40 bg-state-conflict/10 text-state-conflict hover:bg-state-conflict/20"
+              : "border-accent-indigo/30 bg-gradient-to-r from-accent-indigo/10 to-accent-blue/10 text-state-orchestration"
+          }`}
         >
-          Run seeded demo
-          <span className="mt-0.5 block text-[10px] font-normal text-muted">Plan · Route · Execute · Verify</span>
+          {starting ? "Starting…" : running ? "Stop Demo" : "Run Demo"}
+          <span className="mt-0.5 block text-[10px] font-normal text-muted">
+            {running ? "Cancels the in-flight task" : "Plan · Route · Execute · Verify"}
+          </span>
         </button>
       </div>
 

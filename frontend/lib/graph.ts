@@ -541,6 +541,16 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
   bob.active = activeProvider === "bob";
   bob.activity.sort((x, y) => x.at.localeCompare(y.at));
 
+  // The canvas renders the current run only. The event log is append-only, so
+  // plans from earlier runs stay in history (event feed, task list) but would
+  // otherwise pile up on the canvas as duplicate "Build the user interface" /
+  // "Implement backend logic" nodes that can never be removed.
+  let latestTaskId: string | null = currentTaskId;
+  for (const submitted of overrides.submitted) latestTaskId = submitted.id;
+  const visibleSubtasks = latestTaskId
+    ? Array.from(subtasks.values()).filter((st) => st.taskId === latestTaskId)
+    : [];
+
   // --- Connections (user-drawn, n8n-style) ---
   const labelById = new Map<string, string>();
   labelById.set(bob.id, bob.label);
@@ -559,7 +569,7 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
     agents,
     bob,
     tasks: Array.from(tasks.values()),
-    subtasks: Array.from(subtasks.values()),
+    subtasks: visibleSubtasks,
     connections,
     activeProvider,
   };
