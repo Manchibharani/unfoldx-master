@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { MeResult, WorkspaceRole } from "@/lib/api";
 import type { AuthStatus } from "@/lib/useAuth";
 
@@ -46,8 +46,25 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [roleChoice, setRoleChoice] = useState<WorkspaceRole>("view");
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const signedIn = status === "authenticated";
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -67,7 +84,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
     "min-w-0 w-full rounded-lg border border-ink-700 bg-ink-800 px-2.5 py-1.5 text-[11px] text-parchment outline-none placeholder:text-muted focus:border-accent-blue/50";
 
   return (
-    <div className="flex flex-col items-end gap-1.5">
+    <div className="relative flex flex-col items-end">
       <div className="flex items-center gap-2">
         <span
           title={!role && error ? error : undefined}
@@ -106,8 +123,28 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
       </div>
 
       {open && (
-        <div className="w-72 rounded-xl border border-ink-700 bg-ink-900 p-3 shadow-xl shadow-black/40">
-          <div className="mb-2.5 flex gap-1 rounded-lg bg-ink-800 p-1">
+        <>
+          <div className="fixed inset-0 z-40" aria-hidden onClick={() => setOpen(false)} />
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-label="Sign in or register"
+            className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-ink-700 bg-ink-900 p-3 shadow-2xl shadow-black/60"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">Account</span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="-mr-1 -mt-1 flex h-5 w-5 items-center justify-center rounded-md text-muted transition-colors hover:bg-ink-800 hover:text-parchment"
+              >
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="mb-2.5 flex gap-1 rounded-lg bg-ink-800 p-1">
             <button
               type="button"
               onClick={() => setMode("login")}
@@ -178,7 +215,8 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
               {busy ? (mode === "login" ? "Signing in…" : "Creating account…") : mode === "login" ? "Sign in" : "Create account & join"}
             </button>
           </form>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

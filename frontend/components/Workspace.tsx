@@ -57,7 +57,7 @@ export function Workspace() {
             className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
           />
           <div>
-            <h1 className="text-base font-bold tracking-tight text-parchment">UnfoldX</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-parchment">UnfoldX</h1>
             <p className="font-mono text-[10px] text-muted">workspace/{WORKSPACE_ID}</p>
           </div>
         </div>

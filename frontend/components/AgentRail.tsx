@@ -65,7 +65,7 @@ export function AgentRail({
               >
                 {/* Provider logo */}
                 <span className="shrink-0">
-                  <ProviderLogo provider={agent.provider} size={18} />
+                  <ProviderLogo provider={agent.provider} size={26} />
                 </span>
 
                 {/* Name + status */}

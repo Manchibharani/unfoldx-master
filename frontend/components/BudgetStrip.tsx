@@ -71,7 +71,7 @@ export function BudgetStrip({
           <div key={e.provider} className="rounded-xl border border-ink-700 bg-ink-800/50 px-3 py-2.5">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <div className="flex min-w-0 items-center gap-2">
-                <ProviderBadge provider={e.provider} />
+                <ProviderBadge provider={e.provider} logoOnly size={22} />
                 {e.agentCount > 1 && (
                   <span className="whitespace-nowrap rounded-full bg-ink-700 px-2 py-0.5 text-[9px] text-muted">
                     ×{e.agentCount}

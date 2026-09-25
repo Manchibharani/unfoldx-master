@@ -18,16 +18,28 @@ const STYLE: Record<Provider, { border: string; bg: string; text: string }> = {
   system: { border: "rgba(138,150,168,0.30)", bg: "rgba(138,150,168,0.08)", text: "#8A96A8" },
 };
 
-export function ProviderBadge({ provider }: { provider: Provider }) {
+export function ProviderBadge({
+  provider,
+  logoOnly = false,
+  size = 12,
+}: {
+  provider: Provider;
+  logoOnly?: boolean;
+  size?: number;
+}) {
   const s = STYLE[provider] ?? STYLE.system;
   const label = LABEL[provider] ?? "Unknown";
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium"
+      title={logoOnly ? label : undefined}
+      aria-label={logoOnly ? label : undefined}
+      className={`inline-flex items-center rounded-full border ${
+        logoOnly ? "p-1" : "gap-1.5 px-2 py-0.5 text-xs font-medium"
+      }`}
       style={{ borderColor: s.border, backgroundColor: s.bg, color: s.text }}
     >
-      <ProviderLogo provider={provider} size={12} />
-      {label}
+      <ProviderLogo provider={provider} size={size} />
+      {!logoOnly && label}
     </span>
   );
 }
