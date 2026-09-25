@@ -34,6 +34,26 @@ def _usage_event(u: dict | None) -> AgentEvent | None:
     return None
 
 
+# Vendor error lines that describe the CLI's own login/credential state. These are normal
+# when a host CLI is installed but not signed in: recording them as hard errors fails every
+# subtask. Demoted to warning log lines, and the provider is benched via provider_failed()
+# so the router re-routes the work to an agent that can actually run.
+_CLI_AUTH_PATTERNS = (
+    "not logged in",
+    "please run /login",
+    "invalid api key",
+    "unauthorized",
+    "api key not set",
+    "credit balance is too low",
+    "insufficient credits",
+)
+
+
+def is_cli_auth_error(text: str) -> bool:
+    t = (text or "").lower()
+    return any(p in t for p in _CLI_AUTH_PATTERNS)
+
+
 def claude_event(obj: dict, state: dict) -> list[AgentEvent]:
     out: list[AgentEvent] = []
     t = obj.get("type")

@@ -61,6 +61,11 @@ class Orchestrator:
         self.running: dict[str, dict[str, RunningSub]] = {}
         self.tasks: dict[str, TaskRuntime] = {}
         self._dispatch_locks: dict[str, asyncio.Lock] = {}
+        # provider -> wall-clock deadline while a real CLI is benched after a hard failure
+        # (bad login, crash, non-zero exit). Keeps one broken CLI from poisoning a whole task:
+        # the router moves the work to the next-best agent and the provider gets a fresh
+        # chance on later tasks. Empty/simulated failures never bench anybody.
+        self.provider_cooldowns: dict[str, float] = {}
 
     # ------------------------------------------------------------------ helpers
     @property
@@ -90,17 +95,26 @@ class Orchestrator:
             agents = list((await s.execute(select(Agent).where(Agent.workspace_id == ws))).scalars())
         conns = {c.provider: c for c in await self.ctx.entitlement.list_conns(ws)}
         budgets = {b["provider"]: b for b in await self.ctx.budget.all(ws)}
+        now = _now().timestamp()
         out = []
         for a in agents:
             c, b = conns.get(a.provider), budgets.get(a.provider)
             if c is None or b is None:
                 continue
+            # A provider bench-cooldown counts as temporarily unavailable for real runs; the
+            # simulated fallback stays usable so the pipeline keeps flowing.
+            cli_available = self.ctx.adapters[a.provider].available() and now >= self.provider_cooldowns.get(a.provider, 0.0)
             quota = None
             if c.pricing.get("model") == "seat" and c.pricing.get("monthly_request_quota"):
                 quota = int(c.pricing["monthly_request_quota"]) - b["requests"]
             out.append(Candidate(a.id, a.provider, a.name, a.capabilities or {}, c.pricing, b, a.enabled, quota,
-                                 cli_available=self.ctx.adapters[a.provider].available()))
+                                 cli_available=cli_available))
         return out
+
+    def provider_failed(self, provider: str) -> None:
+        """Bench a provider whose real CLI just failed hard (auth error, crash, timeout)."""
+        if self.ctx.settings.failover_cooldown_seconds > 0 and self.ctx.adapters[provider].available():
+            self.provider_cooldowns[provider] = _now().timestamp() + self.ctx.settings.failover_cooldown_seconds
 
     # ------------------------------------------------------------------ submit
     async def submit_task(self, ws_id: str, user_id: str | None, prompt: str, attachment_ids: list[str]) -> Task:
@@ -165,6 +179,8 @@ class Orchestrator:
             plan = parse_plan(outcome.final_text) if outcome.ok else None
             if plan is not None:
                 return plan, ("simulated" if outcome.simulated else "bob"), "bob"
+            if outcome.error and not outcome.simulated:
+                self.provider_failed("bob")  # hard CLI failure (bad auth/crash): bench it and fall back
             reason = outcome.error or "Bob's plan output was not valid plan JSON"
             await self.ctx.events.append(ws, "log_line", {
                 "line": f"Bob plan unusable ({reason}); falling back to heuristic decomposition", "level": "warning"},
@@ -352,8 +368,20 @@ class Orchestrator:
                 await self._complete(ws, rt, sub, agent, req, outcome, ident)
             else:
                 msg = outcome.error or "agent failed"
-                await self._set(sub_id, status="failed", error=msg, finished_at=_now())
-                await self.ctx.events.append(ws, "error", {"message": f"Subtask '{sub.title}' failed: {msg}"}, **ident)
+                # Failover: a hard failure of a REAL CLI (bad login, crash, timeout) benches the
+                # provider and re-queues the subtask once, so the router picks the next-best
+                # agent (or a simulated run) instead of failing the whole task. Attempt 2+ is
+                # final: if every real executor is down, the failure is reported as-is.
+                if not outcome.simulated and not rs.redirected and sub.attempts < 2:
+                    self.provider_failed(agent.provider)
+                    await self._set(sub_id, status="pending", agent_id=agent.id,
+                                    forced_agent_id=None, error=None, finished_at=None)
+                    await self.ctx.events.append(ws, "log_line", {
+                        "line": f"Subtask '{sub.title}' failed on {agent.name} ({msg}); re-routing to the next best agent",
+                        "level": "warning", "failover": True}, **ident)
+                else:
+                    await self._set(sub_id, status="failed", error=msg, finished_at=_now())
+                    await self.ctx.events.append(ws, "error", {"message": f"Subtask '{sub.title}' failed: {msg}"}, **ident)
         except asyncio.CancelledError:
             raise
         except Exception as e:

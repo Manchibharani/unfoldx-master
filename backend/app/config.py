@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     allow_simulation: bool = True
     sim_delay_seconds: float = 0.35
 
+    # Failover: when a real CLI executor fails mid-task (bad auth, crash, non-zero exit), the
+    # subtask is re-queued to the next-best agent and the failing provider is benched for this
+    # many seconds so one broken CLI cannot poison the whole task with repeated failures.
+    failover_cooldown_seconds: float = 120.0
+
     # --- provider CLI command templates ({prompt} becomes ONE argv token; no shell is involved) --
     bob_cmd: str = "bob run --output-format stream-json {prompt}"
     bob_plan_cmd: str = "bob run --mode plan --output-format stream-json {prompt}"

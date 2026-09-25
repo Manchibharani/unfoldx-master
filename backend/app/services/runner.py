@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 
 from ..adapters.base import AdapterUnavailable, RunHandle, RunRequest
+from ..adapters.normalize import is_cli_auth_error
 from ..catalog import estimate_cost
 from ..models import Agent
 
@@ -70,6 +71,8 @@ class AgentRunner:
         buf_len = 0
         result_text = ""
         error_seen: str | None = None
+        hard_cli_failure = False
+        auth_error_text = ""
         gen = adapter.stream(handle, req)
         try:
             async for ev in gen:
@@ -114,8 +117,25 @@ class AgentRunner:
                 elif ev.kind == "result":
                     result_text = ev.text or result_text
                 elif ev.kind == "error":
-                    error_seen = ev.text
-                    await ctx.events.append(ws_id, "error", {"message": ev.text[:MAX_LINE], "provider": agent.provider}, **ident)
+                    if is_cli_auth_error(ev.text):
+                        # The CLI itself is not signed in / not funded: demote to a warning log
+                        # line (keeps the event log honest without red-failing every subtask)
+                        # and mark the run as a hard CLI failure so the orchestrator benches the
+                        # provider and re-routes the subtask instead of failing the task.
+                        hard_cli_failure = True
+                        auth_error_text = ev.text[:MAX_LINE]
+                        await ctx.events.append(ws_id, "log_line", {
+                            "line": auth_error_text, "stream": "stderr", "level": "warning",
+                            "provider_status": "cli_not_signed_in"}, **ident)
+                    elif hard_cli_failure and "exited with code" in ev.text:
+                        # The non-zero exit that follows an auth failure is the same root cause;
+                        # keep the log clean and let failover tell the story once.
+                        await ctx.events.append(ws_id, "log_line", {
+                            "line": ev.text[:MAX_LINE], "stream": "stderr", "level": "warning",
+                            "provider_status": "cli_not_signed_in"}, **ident)
+                    else:
+                        error_seen = ev.text
+                        await ctx.events.append(ws_id, "error", {"message": ev.text[:MAX_LINE], "provider": agent.provider}, **ident)
         finally:
             await gen.aclose()
             if handle.proc is not None and handle.proc.returncode is None:
@@ -123,8 +143,8 @@ class AgentRunner:
 
         out.stopped = handle.stop_requested and not out.tripped
         out.final_text = result_text or "\n".join(buffer[-20:])
-        out.error = error_seen
-        out.ok = not (out.tripped or out.stopped or error_seen) and (handle.simulated or handle.exit_code in (0, None))
+        out.error = error_seen or (f"{adapter.display_name} is not signed in: {auth_error_text}" if hard_cli_failure else None)
+        out.ok = not (out.tripped or out.stopped or out.error) and (handle.simulated or handle.exit_code in (0, None))
         if not out.ok and not out.error and not (out.tripped or out.stopped):
             out.error = f"{adapter.display_name} exited with code {handle.exit_code}"
         return out
