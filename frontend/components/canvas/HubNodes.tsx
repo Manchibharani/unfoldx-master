@@ -266,57 +266,65 @@ export function AgentNode({ data }: NodeProps) {
         disabled={!permissions.canControl}
         onSubmit={(text) => onAction({ kind: "prompt_agent", agentId: agent.id, text })}
       />
-      <NodeAttachments agent={agent} disabled={!permissions.canControl} onAction={onAction} />
-
-      <div className="nodrag mt-2.5 flex flex-wrap gap-1.5">
-        {permissions.canControl ? (
-          <>
-            {agent.breakerTripped && permissions.canApprove && (
+      <NodeAttachments
+        agent={agent}
+        disabled={!permissions.canControl}
+        onAction={onAction}
+        actions={
+          permissions.canControl ? (
+            <>
+              {agent.status === "paused" || agent.status === "stopped" ? (
+                <button
+                  type="button"
+                  onClick={() => onAction({ kind: "resume", provider: agent.provider })}
+                  className="rounded-lg border border-state-running/40 bg-state-running/10 px-2.5 py-1 text-[10px] font-semibold text-state-running"
+                >
+                  Resume
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onAction({ kind: "pause", provider: agent.provider })}
+                  className="rounded-lg border border-ink-600 bg-ink-800 px-2.5 py-1 text-[10px] font-medium text-muted hover:text-parchment"
+                >
+                  Pause
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() =>
-                  onAction({
-                    kind: "approve_budget",
-                    provider: agent.provider,
-                    additionalUsd: agent.capUsd > 0 ? agent.capUsd : 25,
-                  })
+                  onAction({ kind: "stop", provider: agent.provider, taskId: agent.activeTaskId ?? undefined })
                 }
-                className="rounded-lg border border-state-warning/50 bg-state-warning/10 px-2.5 py-1 text-[10px] font-semibold text-state-warning"
+                className="rounded-lg border border-ink-600 bg-ink-800 px-2.5 py-1 text-[10px] font-medium text-muted hover:border-state-conflict/30 hover:text-state-conflict"
               >
-                Approve override
+                Stop
               </button>
-            )}
-            {agent.status === "paused" || agent.status === "stopped" ? (
-              <button
-                type="button"
-                onClick={() => onAction({ kind: "resume", provider: agent.provider })}
-                className="rounded-lg border border-state-running/40 bg-state-running/10 px-2.5 py-1 text-[10px] font-semibold text-state-running"
-              >
-                Resume
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onAction({ kind: "pause", provider: agent.provider })}
-                className="rounded-lg border border-ink-600 bg-ink-800 px-2.5 py-1 text-[10px] font-medium text-muted hover:text-parchment"
-              >
-                Pause
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() =>
-                onAction({ kind: "stop", provider: agent.provider, taskId: agent.activeTaskId ?? undefined })
-              }
-              className="rounded-lg border border-ink-600 bg-ink-800 px-2.5 py-1 text-[10px] font-medium text-muted hover:border-state-conflict/30 hover:text-state-conflict"
-            >
-              Stop
-            </button>
-          </>
-        ) : (
-          <LockedNote role={permissions.role} text="Agent controls require the control role" />
-        )}
-      </div>
+            </>
+          ) : null
+        }
+      />
+
+      {permissions.canControl && agent.breakerTripped && permissions.canApprove && (
+        <div className="nodrag mt-2">
+          <button
+            type="button"
+            onClick={() =>
+              onAction({
+                kind: "approve_budget",
+                provider: agent.provider,
+                additionalUsd: agent.capUsd > 0 ? agent.capUsd : 25,
+              })
+            }
+            className="w-full rounded-lg border border-state-warning/50 bg-state-warning/10 px-2.5 py-1 text-[10px] font-semibold text-state-warning"
+          >
+            Approve override
+          </button>
+        </div>
+      )}
+
+      {!permissions.canControl && (
+        <LockedNote role={permissions.role} text="Agent controls require the control role" />
+      )}
     </div>
   );
 }
