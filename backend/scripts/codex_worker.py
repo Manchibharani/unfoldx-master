@@ -18,7 +18,7 @@ import websockets
 
 
 BACKEND_WS = os.environ.get("UNFOLDX_BACKEND_WS", "").rstrip("/")
-TOKEN = os.environ.get("UNFOLDX_WORKER_TOKEN", "")
+TOKEN = os.environ.get("UNFOLDX_AGENT_BRIDGE_TOKEN", "")
 REPO_ROOT = Path(os.environ.get("UNFOLDX_LOCAL_REPO", Path.cwd())).resolve()
 CODEX = os.environ.get("UNFOLDX_CODEX_BIN", "codex")
 
@@ -57,7 +57,7 @@ async def run_job(ws, job: dict) -> None:
 async def main() -> None:
     if not BACKEND_WS or not TOKEN:
         raise SystemExit("Set UNFOLDX_BACKEND_WS and UNFOLDX_WORKER_TOKEN.")
-    uri = f"{BACKEND_WS}/ws/worker?token={TOKEN}"
+    uri = f"{BACKEND_WS}/ws/agent-bridge?token={TOKEN}"
     print(f"UNFOLD X Codex worker → {BACKEND_WS}")
     print(f"Local repo: {REPO_ROOT}")
     async with websockets.connect(uri, ping_interval=20, ping_timeout=20, max_size=16 * 1024 * 1024) as ws:
