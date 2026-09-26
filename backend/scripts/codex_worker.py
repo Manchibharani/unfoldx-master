@@ -11,6 +11,7 @@ import asyncio
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import websockets
@@ -49,8 +50,14 @@ async def run_job(ws, job: dict) -> None:
     args += ["-s", "read-only" if mode == "plan" else "danger-full-access", prompt]
 
     try:
+        spawn_args = args
+        if os.name == "nt" and CODEX.lower().endswith((".cmd", ".bat")):
+            # npm installs Codex as a Windows command shim. Launch the shim through
+            # cmd.exe while preserving the original argv quoting.
+            command_line = subprocess.list2cmdline(args)
+            spawn_args = [os.environ.get("COMSPEC") or "cmd.exe", "/d", "/s", "/c", command_line]
         proc = await asyncio.create_subprocess_exec(
-            *args,
+            *spawn_args,
             cwd=str(REPO_ROOT),
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
