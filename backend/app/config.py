@@ -85,8 +85,8 @@ class Settings(BaseSettings):
     max_subtask_attempts: int = 4
 
     # --- provider CLI command templates ({prompt} becomes ONE argv token; no shell is involved) --
-    bob_cmd: str = "bob run --format stream-json {prompt}"
-    bob_plan_cmd: str = "bob run --mode plan --format stream-json {prompt}"
+    bob_cmd: str = "bob run --accept-license --format stream-json {prompt}"
+    bob_plan_cmd: str = "bob run --accept-license --mode plan --format stream-json {prompt}"
     codex_cmd: str = "codex exec --json --skip-git-repo-check -s danger-full-access {prompt}"
     codex_plan_cmd: str = "codex exec --json --skip-git-repo-check -s read-only {prompt}"
     gemini_cmd: str = "agy -p {prompt} --output-format stream-json --mode accept-edits"
@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     copilot_cmd: str = "copilot -p {prompt} --allow-all-tools"
     copilot_plan_cmd: str = "copilot -p {prompt}"
     # Env var each CLI reads its API key from.
-    bob_api_key_env: str = "BOBSHELL_API_KEY"
+    bob_api_key_env: str = "BOB_API_KEY"
     codex_api_key_env: str = "OPENAI_API_KEY"
     gemini_api_key_env: str = "GEMINI_API_KEY"
 
