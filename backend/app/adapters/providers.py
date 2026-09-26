@@ -38,6 +38,16 @@ class GeminiAdapter(CliAdapter):
         return agy_event(obj, state)
 
 
+class GitHubCopilotAdapter(CliAdapter):
+    """GitHub Copilot CLI: host-session authenticated (runs on the user's Copilot subscription).
+    Non-interactive mode: `copilot -p {prompt} --allow-all-tools`. Output is plain text lines
+    (no JSON stream), so the base parser's log/last_text handling applies; the runner's buffered
+    tail becomes the result text."""
+    provider, binary = "github_copilot", "copilot"
+    api_key_env_attr, cmd_attr, plan_cmd_attr = "copilot_api_key_env", "copilot_cmd", "copilot_plan_cmd"
+
+
 def build_adapters(settings: Settings) -> dict[str, CliAdapter]:
     return {a.provider: a for a in (BobAdapter(settings), ClaudeCodeAdapter(settings),
-                                    CodexAdapter(settings), GeminiAdapter(settings))}
+                                    CodexAdapter(settings), GeminiAdapter(settings),
+                                    GitHubCopilotAdapter(settings))}

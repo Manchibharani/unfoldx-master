@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +11,41 @@ from ..services.workspaces import create_workspace
 from .serializers import agent_out, subtask_out, task_out
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
+
+_TEXT_SUFFIXES = {".html", ".htm", ".css", ".js", ".mjs", ".json", ".md", ".txt", ".py", ".csv", ".svg", ".xml"}
+
+
+def _safe_repo_path(ctx: AppContext, workspace_id: str, rel: str):
+    """Resolve `rel` inside the workspace repo dir; reject traversal outside it."""
+    root = ctx.settings.workspaces_root / workspace_id / "repo"
+    p = (root / rel).resolve()
+    if not str(p).startswith(str(root.resolve()) + "\\"):
+        return None
+    return p
+
+
+@router.get("/{workspace_id}/files")
+async def list_files(workspace_id: str, ctx: AppContext = Depends(get_ctx),
+                     a: Access = Depends(ws_access("view", "list workspace files"))):
+    """Files agents actually produced in this workspace's repo (relative paths + sizes)."""
+    root = ctx.settings.workspaces_root / workspace_id / "repo"
+    if not root.exists():
+        return []
+    out = []
+    for p in sorted(root.rglob("*")):
+        if p.is_file() and "node_modules" not in p.parts and ".git" not in p.parts:
+            out.append({"path": p.relative_to(root).as_posix(), "size": p.stat().st_size,
+                        "text": p.suffix.lower() in _TEXT_SUFFIXES})
+    return out
+
+
+@router.get("/{workspace_id}/files/content")
+async def read_file(workspace_id: str, path: str, ctx: AppContext = Depends(get_ctx),
+                    a: Access = Depends(ws_access("view", "read workspace file"))):
+    p = _safe_repo_path(ctx, workspace_id, path)
+    if p is None or not p.is_file():
+        raise HTTPException(404, "file not found")
+    return FileResponse(p)
 
 
 @router.post("", status_code=201)

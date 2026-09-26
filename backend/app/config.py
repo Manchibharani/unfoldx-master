@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     codex_plan_cmd: str = "codex exec --json --skip-git-repo-check -s read-only {prompt}"
     gemini_cmd: str = "agy -p {prompt} --output-format stream-json --mode accept-edits"
     gemini_plan_cmd: str = "agy -p {prompt} --output-format stream-json --mode plan"
+    copilot_api_key_env: str = "GITHUB_TOKEN"
+    copilot_cmd: str = "copilot -p {prompt} --allow-all-tools"
+    copilot_plan_cmd: str = "copilot -p {prompt}"
     # Env var each CLI reads its API key from (Bob's is an assumption - override to match Bob Shell).
     bob_api_key_env: str = "BOBSHELL_API_KEY"
     claude_api_key_env: str = "ANTHROPIC_API_KEY"

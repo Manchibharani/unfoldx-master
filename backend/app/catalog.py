@@ -28,6 +28,14 @@ PROVIDERS: dict[str, dict] = {
         "pricing": {"model": "token", "input_per_mtok": 1.25, "output_per_mtok": 10.0},
         "note": "Headless mode reported unstable for sustained non-TTY use: best-effort provider.",
     },
+    "github_copilot": {
+        "display_name": "GitHub Copilot", "default_model": "copilot",
+        "capabilities": {"backend": .82, "frontend": .82, "testing": .80, "refactor": .78, "debugging": .78,
+                         "docs": .72, "devops": .75, "architecture": .68, "security": .62, "data": .60, "planning": .50},
+        # Copilot is seat-priced with the subscription; notional rate keeps a cap meaningful.
+        "pricing": {"model": "seat", "monthly_usd": 10.0, "monthly_request_quota": 300, "notional_usd_per_mtok": 2.0},
+        "note": "Uses the host's GitHub Copilot CLI login (host session); no API key required.",
+    },
     "gemini": {
         "display_name": "Antigravity", "default_model": "gemini",
         "capabilities": {"frontend": .80, "docs": .85, "data": .85, "backend": .70, "testing": .65, "planning": .70,

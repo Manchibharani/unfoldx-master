@@ -22,12 +22,12 @@ def test_demo_workspace_seeded_and_chain_valid(make_client):
     with make_client() as c:
         assert c.get("/healthz").json()["status"] == "ok"
         provs = c.get("/api/workspaces/demo-workspace/providers").json()
-        assert {p["provider"] for p in provs} == {"bob", "claude_code", "codex", "gemini"}
+        assert {p["provider"] for p in provs} == {"bob", "claude_code", "codex", "github_copilot", "gemini"}
         modes = {p["provider"]: p["mode"] for p in provs}
         assert modes["gemini"] == "real"      # fake Antigravity CLI is "installed" in tests
         assert set(v for k, v in modes.items() if k != "gemini") == {"simulated"}
         evts = events(c)
-        assert len(by_type(evts, "provider_connected")) == 4
+        assert len(by_type(evts, "provider_connected")) == 5
         for e in evts:
             WorkspaceEvent.model_validate(e)  # contract check on every emitted event
         v = c.get("/api/workspaces/demo-workspace/events/verify").json()
@@ -106,7 +106,7 @@ def test_conflict_detected_and_serialised(make_client):
 def test_circuit_breaker_pause_and_override(make_client):
     with make_client(sim_delay_seconds=0.01) as c:
         base = "/api/workspaces/demo-workspace"
-        for p in ("claude_code", "codex", "gemini"):  # leave only Bob to spend, with a tiny cap
+        for p in ("claude_code", "codex", "github_copilot", "gemini"):  # leave only Bob to spend, with a tiny cap
             for a in c.get(f"{base}/agents").json():
                 if a["provider"] == p:
                     c.patch(f"{base}/agents/{a['id']}", json={"enabled": False})
@@ -190,7 +190,7 @@ def test_ws_requires_membership_in_jwt_mode(tmp_path):
         port = sk.getsockname()[1]
     app = create_app(Settings(data_dir=tmp_path / "jwtws", auth_mode="jwt", sim_delay_seconds=0.0,
                               entitlement_poll_seconds=0))
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", ws="websockets-sansio"))
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", ws="websockets"))
     th = threading.Thread(target=server.run, daemon=True)
     th.start()
     try:
@@ -318,7 +318,7 @@ def test_without_bob_uses_heuristic_planner(make_client):
     with make_client(seed_demo_workspace=False) as c:  # allow_simulation defaults on
         base = "/api/workspaces/no-bob"
         assert c.post("/api/workspaces", json={"name": "x", "id": "no-bob"}).status_code == 201
-        for p in ("claude_code", "codex", "gemini"):
+        for p in ("claude_code", "codex", "github_copilot", "gemini"):
             assert c.post(f"{base}/providers", json={"provider": p}).status_code == 201
         r = c.post(f"{base}/tasks", json={"prompt": PROMPT})
         assert r.status_code == 202
@@ -330,7 +330,7 @@ def test_without_bob_uses_heuristic_planner(make_client):
         # planning was NOT attributed to Bob, and subtasks ran on the connected executors
         assert plan["planner"]["provider"] is None and plan["planner"]["mode"] == "heuristic-fallback"
         dispatched = [e["provider"] for e in by_type(evts, "dispatch_started")]
-        assert dispatched and "bob" not in dispatched and set(dispatched) <= {"claude_code", "codex", "gemini"}
+        assert dispatched and "bob" not in dispatched and set(dispatched) <= {"claude_code", "codex", "github_copilot", "gemini"}
         assert len(by_type(evts, "handoff_emitted")) == len(plan["subtasks"])
         detail = c.get(f"/api/tasks/{tid}").json()
         assert detail["status"] == "completed" and all(s["status"] == "completed" for s in detail["subtasks"])
@@ -375,7 +375,7 @@ def test_websocket_replay_then_live_without_gaps_or_dupes(tmp_path, make_client)
         sk.bind(("127.0.0.1", 0))
         port = sk.getsockname()[1]
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning",
-                                           ws="websockets-sansio"))
+                                           ws="websockets"))
     th = threading.Thread(target=server.run, daemon=True)
     th.start()
     try:

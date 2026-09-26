@@ -121,6 +121,7 @@ def parse_handoff(text: str) -> dict | None:
 # ---------------------------------------------------------------------------------------------
 _RULES: list[tuple[str, tuple[str, ...], str, list[str]]] = [
     # capability, keywords, title, default claimed paths
+    ("docs", ("presentation", "slides", "slide deck", "ppt", "pitch deck"), "Create the presentation", ["slides.html"]),
     ("architecture", ("architecture", "design the", "data model", "schema"), "Design the approach and data model", ["docs/design/**"]),
     ("backend", ("api", "endpoint", "server", "backend", "database", "fastapi", "django", "flask", "express", "sql", "auth", "login"), "Implement backend logic", ["backend/**"]),
     ("data", ("csv", "etl", "pandas", "dataset", "analysis", "analytics"), "Build the data pipeline", ["data/**"]),
@@ -149,7 +150,14 @@ def heuristic_plan(request: str) -> dict:
     subtasks: list[dict] = []
     for cap, _, title, files in chosen:
         mine = [p for p in explicit if _EXT_TO_CAP.get(_ext(p)) == cap]
-        subtasks.append({"title": title, "description": f"{title} for: {request.strip()[:400]}",
+        if cap == "docs" and not mine:
+            # Artifact requests ("a presentation (slides.html)") name their output file directly:
+            # claim exactly that file so the executor builds the artifact the user asked for.
+            mine = [p for p in explicit if _ext(p) in (".html", ".pptx", ".md")]
+        desc = f"{title} for: {request.strip()[:400]}"
+        if cap == "docs" and len(chosen) == 1:
+            desc = request.strip()[:2000]  # the artifact spec IS the work order
+        subtasks.append({"title": title, "description": desc,
                          "capabilities": [cap], "files": mine or list(files), "depends_on": []})
     for i, st in enumerate(subtasks):  # tests/docs run after the implementation work they describe
         if st["capabilities"][0] in ("testing", "docs", "devops"):
