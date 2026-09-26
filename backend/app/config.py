@@ -13,7 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 def _load_env_values(env_file: Path) -> dict[str, str]:
     """KEY=VALUE pairs from a .env file (no interpolation). Unknown keys matter: provider API
-    keys (BOB_API_KEY, OPENAI_API_KEY, ...) live here and must reach the CLIs' child
+    keys (BOBSHELL_API_KEY, OPENAI_API_KEY, ...) live here and must reach the CLIs' child
     processes even though pydantic-settings ignores fields it has no model for."""
     out: dict[str, str] = {}
     if not env_file.is_file():
@@ -58,8 +58,8 @@ class Settings(BaseSettings):
     # treated as a literal string that never matches), so the dev wildcard is expressed
     # via cors_origin_regex instead. In production set explicit origins and an empty regex.
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://aashvarsha26.github.io,https://creative-unity-production.up.railway.app"
-    cors_origin_regex: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
-    seed_demo_workspace: bool = True  # creates `demo-workspace` on startup when auth_mode=open
+    cors_origin_regex: str = r"https?://(localhost|127\.0.0\.1)(:\d+)?"
+    seed_demo_workspace: bool = True
     demo_workspace_id: str = "demo-workspace"
 
     # --- orchestration -------------------------------------------------------------------------
@@ -79,33 +79,16 @@ class Settings(BaseSettings):
     # Failover: when a real CLI executor fails mid-task (bad auth, crash, non-zero exit), the
     # subtask is re-queued to the next-best agent and the failing provider is benched for this
     # many seconds so one broken CLI cannot poison the whole task with repeated failures.
-    # An auth failure ("not signed in") cannot recover mid-task — the user has to log in on the
-    # host — so the default bench is long enough that sibling subtasks skip the dead CLI
-    # entirely instead of each paying a doomed attempt on it.
     failover_cooldown_seconds: float = 600.0
-    # Total dispatch attempts one subtask may consume before it is declared failed. With four
-    # providers, a cap of 4 lets every real CLI fail once and the task still finish on a
-    # simulated agent instead of dying because two different CLIs each failed once.
     max_subtask_attempts: int = 4
 
     # --- provider CLI command templates ({prompt} becomes ONE argv token; no shell is involved) --
     bob_cmd: str = "bob run --output-format stream-json {prompt}"
     bob_plan_cmd: str = "bob run --mode plan --output-format stream-json {prompt}"
-    # --skip-git-repo-check: tasks run in per-workspace dirs under data/workspaces, which are
-    # not git repositories — without the flag codex 0.157 refuses to start there.
-    # -s danger-full-access: codex's internal workspace-write sandbox helper fails on Windows
-    # ("unified exec process ... setup refresh had errors"), so its shell can't start at all.
-    # The backend provides the real containment itself (per-workspace cwd, scrubbed env,
-    # redirected HOME, hard timeout, process-group kill), which is the documented use for
-    # this mode. Read-only works but cannot edit files, so it's useless for coding tasks.
     codex_cmd: str = "codex exec --json --skip-git-repo-check -s danger-full-access {prompt}"
     codex_plan_cmd: str = "codex exec --json --skip-git-repo-check -s read-only {prompt}"
     gemini_cmd: str = "agy -p {prompt} --output-format stream-json --mode accept-edits"
     gemini_plan_cmd: str = "agy -p {prompt} --output-format stream-json --mode plan"
-    # opencode: `run --format json` emits NDJSON (step_start / text / tool_use / step_finish with
-    # token counts). --auto approves write permissions non-interactively (the backend provides the
-    # real containment: per-workspace cwd, scrubbed env, timeout, process-group kill).
-    # Plan mode uses opencode's built-in read-only `plan` agent.
     opencode_cmd: str = "opencode run --auto --format json {prompt}"
     opencode_plan_cmd: str = "opencode run --agent plan --format json {prompt}"
     opencode_api_key_env: str = "OPENCODE_API_KEY"
@@ -113,7 +96,7 @@ class Settings(BaseSettings):
     copilot_cmd: str = "copilot -p {prompt} --allow-all-tools"
     copilot_plan_cmd: str = "copilot -p {prompt}"
     # Env var each CLI reads its API key from.
-    bob_api_key_env: str = "BOB_API_KEY"
+    bob_api_key_env: str = "BOBSHELL_API_KEY"
     codex_api_key_env: str = "OPENAI_API_KEY"
     gemini_api_key_env: str = "GEMINI_API_KEY"
 
@@ -129,11 +112,6 @@ class Settings(BaseSettings):
     def _finalize(self) -> "Settings":
         self.data_dir = Path(self.data_dir).resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        # Provider key VALUES (BOB_API_KEY etc.) are not model fields, so pydantic-settings
-        # parses .env and drops them. Re-apply the whole file into the process environment
-        # (without overriding real env vars) so entitlement.credential_env() can find the keys
-        # and inject them into provider subprocesses. This is the fix for ".env documents the
-        # key NAME but the VALUE is never used".
         for key, value in _load_env_values(Path(".env")).items():
             if value and key not in os.environ:
                 os.environ[key] = value
