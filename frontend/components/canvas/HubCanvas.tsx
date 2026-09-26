@@ -182,7 +182,19 @@ export function HubCanvas({
 
   return (
     <div className="relative h-full w-full overflow-hidden">
+      <video
+        className="workspace-canvas__video pointer-events-none absolute inset-0 h-full w-full object-cover"
+        src="/videos/shader-21st.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      />
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-[#080D18]/45" aria-hidden="true" />
       <ReactFlow
+        className="workspace-flow relative z-[2]"
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
