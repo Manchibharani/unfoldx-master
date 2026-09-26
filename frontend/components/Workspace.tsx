@@ -14,7 +14,9 @@ import { BudgetStrip } from "./BudgetStrip";
 import { EventFeed } from "./EventFeed";
 import { AskBob } from "./AskBob";
 import { AgentRail } from "./AgentRail";
+import { PluginsPanel } from "./PluginsPanel";
 import { Inspector } from "./Inspector";
+import type { CanvasPluginPanel, PluginId } from "@/lib/plugins";
 
 // React Flow measures the DOM, so it only mounts on the client.
 const HubCanvas = dynamic(() => import("./canvas/HubCanvas").then((m) => m.HubCanvas), {
@@ -33,6 +35,7 @@ export function Workspace() {
   const { events, budgets, connectionState } = useWorkspaceSocket(WORKSPACE_ID, auth.token);
   const { overrides, queue, send } = useOrchestration(WORKSPACE_ID);
   const [selection, setSelection] = useState<HubSelection>(null);
+  const [canvasPlugins, setCanvasPlugins] = useState<CanvasPluginPanel[]>([]);
 
   const hub = useMemo(() => buildHub(events, overrides), [events, overrides]);
   const ledgerAgents = useMemo(() => [hub.bob, ...hub.agents], [hub]);
@@ -40,6 +43,12 @@ export function Workspace() {
     process.env.NEXT_PUBLIC_MOCK !== "1" &&
     connectionState === "connected" &&
     auth.permissions.canControl;
+  const openPlugin = (plugin: PluginId) => {
+    setCanvasPlugins((current) => [
+      ...current,
+      { id: `plugin-${crypto.randomUUID()}`, plugin },
+    ]);
+  };
 
   /**
    * A run is in flight from its `task_submitted` until a terminal event. The
@@ -122,6 +131,7 @@ export function Workspace() {
             onSelect={setSelection}
             onAction={send}
           />
+          <PluginsPanel onOpenPlugin={openPlugin} />
           <section className="mt-3 overflow-hidden rounded-xl bg-ink-900">
             <div className="border-b border-ink-700 px-4 py-3">
               <h2 className="text-[11px] font-semibold uppercase tracking-widest text-state-info">Budget ledger</h2>
@@ -141,6 +151,7 @@ export function Workspace() {
               onAction={send}
               selection={selection}
               onSelectionChange={setSelection}
+              pluginPanels={canvasPlugins}
             />
             <div className="pointer-events-none absolute right-3 top-3 z-10">
               <ChainBadge workspaceId={WORKSPACE_ID} eventsLen={events.length} />

@@ -8,7 +8,7 @@ import type { ControlAction } from "@/lib/useOrchestration";
 import type { Permissions } from "@/lib/permissions";
 import { ProviderLogo } from "./ProviderLogo";
 
-const ADDABLE_PROVIDERS: Provider[] = ["bob", "claude_code", "codex", "gemini"];
+const ADDABLE_PROVIDERS: Provider[] = ["bob", "claude_code", "codex", "github_copilot", "gemini"];
 
 /** The judge scenario the demo button submits to the live backend. */
 const DEMO_PROMPT =
@@ -20,7 +20,7 @@ function statusOf(agent: AgentState): { label: string; dot: string } {
   }
   if (agent.status === "paused") return { label: "paused", dot: "bg-state-warning" };
   if (agent.active) return { label: "working", dot: "bg-state-running animate-pulse" };
-  if (agent.connected) return { label: "ready", dot: "bg-state-running" };
+  if (agent.connected) return { label: "Ready", dot: "bg-state-running" };
   return { label: "offline", dot: "bg-state-inactive" };
 }
 

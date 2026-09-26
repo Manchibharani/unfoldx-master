@@ -17,7 +17,7 @@ const STYLE: Record<ChainStatus, string> = {
 
 const LABEL: Record<ChainStatus, string> = {
   loading: "verifying chain…",
-  ok: "chain verified ✓",
+  ok: "Chain Verified ✓",
   broken: "⚠ chain broken",
   unavailable: "chain · offline",
 };

@@ -49,7 +49,7 @@ function ContextSummary({
             <ProviderLogo provider={agent.provider} size={22} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold" style={{ color: accent }}>{agent.label}</p>
-              <p className="text-[10px] text-muted">{PROVIDER_LABEL[agent.provider]} · {agent.connected ? "connected" : "offline"}</p>
+              <p className="text-[10px] text-muted">{PROVIDER_LABEL[agent.provider]} · {agent.connected ? "Connected" : "Offline"}</p>
             </div>
           </div>
           <span
@@ -89,7 +89,7 @@ function ContextSummary({
             </svg>
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-parchment">Workspace inspector</h2>
+            <h2 className="text-sm font-semibold text-parchment">Workspace Inspector</h2>
             <p className="text-[10px] text-muted">{events.length} events in view</p>
           </div>
         </div>
@@ -199,7 +199,7 @@ export function Inspector({
                   No activity for this selection yet.
                 </p>
               ) : (
-                <ol className="max-h-[58vh] overflow-y-auto">
+                <ol>
                   {[...relevantEvents].reverse().slice(0, 100).map((event) => (
                     <li key={event.id} className="grid grid-cols-[44px_minmax(0,1fr)] gap-2 border-b border-ink-700/60 py-2.5 last:border-0">
                       <time className="text-[9px] tabular-nums text-muted/60">{timeOf(event.ts)}</time>

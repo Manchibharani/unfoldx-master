@@ -66,7 +66,7 @@ export function BudgetStrip({
     <div className="divide-y divide-ink-700">
       {entries.map((e) => {
         const pct = e.capUsd > 0 ? Math.min(100, (e.spentUsd / e.capUsd) * 100) : 0;
-        const barColor = e.breakerTripped ? "#EA7568" : pct > 80 ? "#D9A441" : "#3ECFB2";
+        const barColor = e.breakerTripped ? "#EA7568" : pct > 80 ? "#D9A441" : "#56b7de";
         return (
           <div key={e.provider} className="px-2.5 py-3">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -97,7 +97,7 @@ export function BudgetStrip({
             </div>
 
             <div className="mt-1.5 flex items-center justify-between text-[10px]">
-              <span className={e.connected ? "text-state-running" : "text-muted/60"}>{e.connected ? "connected" : "not connected"}</span>
+              <span className={e.connected ? "text-state-running" : "text-muted/60"}>{e.connected ? "Connected" : "Not connected"}</span>
               <span className="tabular-nums text-muted">{e.tokensUsed.toLocaleString()} tok</span>
             </div>
 

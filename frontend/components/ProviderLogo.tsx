@@ -3,8 +3,9 @@ import type { Provider } from "@/lib/types";
 
 const LOGO_PATH: Partial<Record<Provider, string>> = {
   bob: "/logos/bob.png",
-  claude_code: "/logos/claude-code.webp",
+  claude_code: "/logos/opencode.svg",
   codex: "/logos/codex.webp",
+  github_copilot: "/logos/github-copilot.svg",
   gemini: "/logos/gemini.png",
 };
 
@@ -30,6 +31,25 @@ export function ProviderLogo({
 }) {
   const src = LOGO_PATH[provider];
   if (!src) return <SystemLogo size={size} />;
+
+  if (provider === "claude_code") {
+    return (
+      <span
+        className="flex shrink-0 items-center justify-center overflow-hidden rounded-md"
+        style={{ width: size, height: size }}
+      >
+        <Image
+          src={src}
+          alt=""
+          aria-hidden
+          width={Math.round(size * 0.8)}
+          height={size}
+          unoptimized
+          className="h-full w-auto max-w-full object-contain"
+        />
+      </span>
+    );
+  }
 
   return (
     <Image

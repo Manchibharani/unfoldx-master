@@ -10,20 +10,22 @@ import type { Provider, WorkspaceEvent } from "./types";
  */
 
 /** Providers shown as agent nodes around the hub. Bob is the hub itself. */
-export const AGENT_PROVIDERS: Provider[] = ["claude_code", "codex", "gemini"];
+export const AGENT_PROVIDERS: Provider[] = ["claude_code", "codex", "github_copilot", "gemini"];
 
 export const PROVIDER_LABEL: Record<Provider, string> = {
   bob: "Bob",
-  claude_code: "Claude",
+  claude_code: "OpenCode",
   codex: "ChatGPT",
+  github_copilot: "GitHub Copilot",
   gemini: "Antigravity",
   system: "System",
 };
 
 export const PROVIDER_ACCENT: Record<Provider, string> = {
   bob: "#7C6EE8",
-  claude_code: "#D97B5A",
-  codex: "#19C37D",
+  claude_code: "#C7CDD4",
+  codex: "#10A37F",
+  github_copilot: "#9B6CFF",
   gemini: "#3B8EE8",
   system: "#8A96A8",
 };
@@ -32,6 +34,7 @@ export const PROVIDER_CAPABILITIES: Record<Provider, string[]> = {
   bob: ["decomposition", "coordination", "repo-context"],
   claude_code: ["implementation", "refactor", "tests"],
   codex: ["algorithms", "optimization", "implementation"],
+  github_copilot: ["implementation", "refactor", "tests"],
   gemini: ["research", "docs", "analysis"],
   system: ["scheduling"],
 };
@@ -281,7 +284,7 @@ export function routeTask(prompt: string): { provider: Provider; reason: string 
   if (bestScore <= 0) {
     return {
       provider: "claude_code",
-      reason: "No capability signal — defaulting to Claude Code for general implementation.",
+      reason: "No capability signal — defaulting to OpenCode for general implementation.",
     };
   }
   return {

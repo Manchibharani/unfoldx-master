@@ -15,7 +15,7 @@ const config: Config = {
         parchment: "#E8ECF5",
         state: {
           orchestration: "#8175E8",
-          running: "#3ECFB2",
+          running: "#56b7de",
           warning: "#D9A441",
           conflict: "#EA7568",
           inactive: "#7E899F",
@@ -27,13 +27,14 @@ const config: Config = {
         accent: {
           blue: "#7189B5",
           indigo: "#8175E8",
-          teal: "#3ECFB2",
+          teal: "#56b7de",
         },
         // per-provider brand colors
         provider: {
           bob: "#7C6EE8",
-          claude: "#D97B5A",
-          chatgpt: "#19C37D",
+          opencode: "#C7CDD4",
+          chatgpt: "#10A37F",
+          "github-copilot": "#9B6CFF",
           antigravity: "#3B8EE8",
           system: "#8A96A8",
         },

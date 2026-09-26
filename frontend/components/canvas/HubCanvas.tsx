@@ -13,14 +13,18 @@ import {
   type Connection as RFConnection,
   type Edge,
   type Node,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { LAYOUT, PROVIDER_ACCENT, type HubModel, type HubSelection } from "@/lib/graph";
 import type { ControlAction } from "@/lib/useOrchestration";
 import type { Permissions } from "@/lib/permissions";
+import type { CanvasPluginPanel } from "@/lib/plugins";
 import { AgentNode, HubNode, SubtaskNode } from "./HubNodes";
+import { CanvaNode } from "./CanvaNode";
+import { GitHubNode } from "./GitHubNode";
 
-const nodeTypes = { agent: AgentNode, hub: HubNode, subtask: SubtaskNode };
+const nodeTypes = { agent: AgentNode, hub: HubNode, subtask: SubtaskNode, canva: CanvaNode, github: GitHubNode };
 
 function buildFlow(
   model: HubModel,
@@ -28,12 +32,15 @@ function buildFlow(
   onAction: (action: ControlAction) => void,
   selection: HubSelection,
   removedNodeIds: Set<string>,
-  onRemoveNode: (nodeId: string) => void
+  onRemoveNode: (nodeId: string) => void,
+  pluginPanels: CanvasPluginPanel[]
 ) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   const visibleSubtasks = model.subtasks.filter((subtask) => !removedNodeIds.has(`subtask-${subtask.id}`));
-  const visibleAgents = model.agents.filter((agent) => !removedNodeIds.has(agent.id));
+  const visibleAgents = model.agents.filter(
+    (agent) => !removedNodeIds.has(agent.id) && (!agent.builtIn || agent.connected || agent.active)
+  );
 
   visibleSubtasks.forEach((subtask, i) => {
     const nodeId = `subtask-${subtask.id}`;
@@ -69,6 +76,16 @@ function buildFlow(
       selected: selection?.kind === "agent" && selection.id === agent.id,
       position: { x: LAYOUT.agentX, y: i * LAYOUT.agentGap },
       data: { agent, onAction, permissions, onRemoveNode },
+    });
+  });
+
+  pluginPanels.forEach((panel, i) => {
+    if (removedNodeIds.has(panel.id)) return;
+    nodes.push({
+      id: panel.id,
+      type: panel.plugin,
+      position: { x: LAYOUT.agentX + 360, y: i * 320 },
+      data: { panel, onRemoveNode },
     });
   });
 
@@ -128,12 +145,14 @@ export function HubCanvas({
   onAction,
   selection,
   onSelectionChange,
+  pluginPanels,
 }: {
   model: HubModel;
   permissions: Permissions;
   onAction: (action: ControlAction) => void;
   selection: HubSelection;
   onSelectionChange: (selection: HubSelection) => void;
+  pluginPanels: CanvasPluginPanel[];
 }) {
   const [removedNodeIds, setRemovedNodeIds] = useState<Set<string>>(() => new Set());
   const onRemoveNode = useCallback((nodeId: string) => {
@@ -142,17 +161,27 @@ export function HubCanvas({
     onSelectionChange(null);
   }, [onSelectionChange]);
   const derived = useMemo(
-    () => buildFlow(model, permissions, onAction, selection, removedNodeIds, onRemoveNode),
-    [model, permissions, onAction, selection, removedNodeIds, onRemoveNode]
+    () => buildFlow(model, permissions, onAction, selection, removedNodeIds, onRemoveNode, pluginPanels),
+    [model, permissions, onAction, selection, removedNodeIds, onRemoveNode, pluginPanels]
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(derived.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(derived.edges);
   const [connecting, setConnecting] = useState(false);
+  const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const latestPluginPanelId = pluginPanels.length > 0 ? pluginPanels[pluginPanels.length - 1].id : null;
 
   useEffect(() => {
     setNodes((current) => mergeNodes(current, derived.nodes));
     setEdges(derived.edges);
   }, [derived, setNodes, setEdges]);
+
+  useEffect(() => {
+    if (!flowInstance || !latestPluginPanelId) return;
+    const frame = requestAnimationFrame(() => {
+      void flowInstance.fitView({ nodes: [{ id: latestPluginPanelId }], padding: 0.18, duration: 350 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [flowInstance, latestPluginPanelId]);
 
   const onConnect = useCallback(
     (connection: RFConnection) => {
@@ -184,7 +213,7 @@ export function HubCanvas({
     <div className="relative h-full w-full overflow-hidden">
       <video
         className="workspace-canvas__video pointer-events-none absolute inset-0 h-full w-full object-cover"
-        src="/videos/shader-21st.mp4"
+        src="/videos/canvas-bg.mp4"
         autoPlay
         muted
         loop
@@ -192,8 +221,8 @@ export function HubCanvas({
         preload="auto"
         aria-hidden="true"
       />
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-[#080D18]/45" aria-hidden="true" />
       <ReactFlow
+        onInit={setFlowInstance}
         className="workspace-flow relative z-[2]"
         nodes={nodes}
         edges={edges}
@@ -229,7 +258,7 @@ export function HubCanvas({
           pannable
           zoomable
           nodeColor={(n) =>
-            n.type === "hub" ? PROVIDER_ACCENT.bob : n.type === "agent" ? "#3ECFB2" : "#243357"
+            n.type === "hub" ? PROVIDER_ACCENT.bob : n.type === "agent" ? "#56b7de" : "#243357"
           }
           maskColor="rgba(8, 13, 24, 0.75)"
           className="!rounded-xl !border !border-ink-700"

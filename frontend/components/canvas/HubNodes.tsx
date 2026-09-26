@@ -101,7 +101,7 @@ function Pill({ className, children }: { className: string; children: React.Reac
 
 function BudgetBar({ spent, cap, breaker }: { spent: number; cap: number; breaker: boolean }) {
   const pct = cap > 0 ? Math.min(100, (spent / cap) * 100) : 0;
-  const color = breaker ? "#EA7568" : pct > 80 ? "#D9A441" : "#3ECFB2";
+  const color = breaker ? "#EA7568" : pct > 80 ? "#D9A441" : "#56b7de";
   return (
     <div className="h-1 w-full overflow-hidden rounded-full bg-ink-700">
       <div
@@ -211,9 +211,9 @@ export function AgentNode({ data }: NodeProps) {
     <div
       className="w-72 rounded-xl bg-ink-900 px-3.5 py-3"
       style={{
-        border: `1px solid ${agent.active ? "rgba(62,207,178,0.38)" : "rgba(255,255,255,0.06)"}`,
+        border: `1px solid ${agent.active ? "rgba(86,183,222,0.38)" : "rgba(255,255,255,0.06)"}`,
         boxShadow: agent.active
-          ? "0 8px 28px -14px rgba(62,207,178,0.42)"
+          ? "0 8px 28px -14px rgba(86,183,222,0.42)"
           : "0 10px 28px -18px rgba(0,0,0,0.86)",
       }}
     >
@@ -249,7 +249,7 @@ export function AgentNode({ data }: NodeProps) {
 
       {/* Sub-line */}
       <div className="mt-1 text-[10px] text-muted">
-        {agent.connected ? "connected" : "not connected"} · {agent.eventCount} events ·{" "}
+        {agent.connected ? "Connected" : "Not connected"} · {agent.eventCount} events ·{" "}
         {agent.capabilities.slice(0, 3).join(" / ")}
       </div>
 
@@ -349,9 +349,9 @@ export function HubNode({ data }: NodeProps) {
     <div
       className="w-72 rounded-xl bg-ink-900 px-4 py-3"
       style={{
-        border: `1px solid ${agent.active ? "rgba(62,207,178,0.38)" : "rgba(255,255,255,0.06)"}`,
+        border: `1px solid ${agent.active ? "rgba(86,183,222,0.38)" : "rgba(255,255,255,0.06)"}`,
         boxShadow: agent.active
-          ? "0 8px 30px -14px rgba(62,207,178,0.42)"
+          ? "0 8px 30px -14px rgba(86,183,222,0.42)"
           : "0 12px 32px -18px rgba(0,0,0,0.9)",
       }}
     >

@@ -5,7 +5,13 @@
  * schema/workspace-event.schema.json for the language-agnostic version.
  */
 
-export type Provider = "bob" | "claude_code" | "codex" | "gemini" | "system";
+export type Provider =
+  | "bob"
+  | "claude_code"
+  | "codex"
+  | "github_copilot" // Frontend placeholder; not part of the backend schema yet.
+  | "gemini"
+  | "system";
 
 export type EventType =
   | "provider_connected"

@@ -5,6 +5,10 @@ function stringField(payload: Record<string, unknown>, key: string, fallback: st
   return typeof value === "string" ? value : fallback;
 }
 
+function displayProvider(value: string): string {
+  return value === "claude_code" ? "OpenCode" : value.replace(/_/g, " ");
+}
+
 /**
  * Turns a raw payload into one plain-language line. Falls back to a
  * compact JSON preview for event types this hasn't been taught yet,
@@ -15,7 +19,7 @@ export function summarize(event: WorkspaceEvent): string {
   let text: string;
   switch (event.event_type) {
     case "provider_connected":
-      text = stringField(p, "detail", `${stringField(p, "provider", event.provider)} connected`);
+      text = stringField(p, "detail", `${displayProvider(stringField(p, "provider", event.provider))} connected`);
       break;
     case "task_submitted":
       text = stringField(p, "summary", "Task submitted");
@@ -26,7 +30,9 @@ export function summarize(event: WorkspaceEvent): string {
         : "Task decomposed";
       break;
     case "route_decided":
-      text = p.reason ? `Routed to ${p.agent ?? event.provider} — ${p.reason}` : "Route decided";
+      text = p.reason
+        ? `Routed to ${displayProvider(typeof p.agent === "string" ? p.agent : event.provider)} — ${p.reason}`
+        : "Route decided";
       break;
     case "conflict_checked":
       text = "Checked for conflicts with in-flight work — none found";

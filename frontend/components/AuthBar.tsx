@@ -115,7 +115,7 @@ export function AuthBar({ status, user, role, busy, error, onLogin, onRegister, 
             type="button"
             onClick={() => setOpen((v) => !v)}
             disabled={status === "mock"}
-            className="rounded-lg border border-accent-indigo/40 bg-accent-indigo/10 px-2.5 py-1 text-[10px] font-medium text-state-orchestration disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg border border-accent-indigo/40 bg-accent-indigo/10 px-2.5 py-1 text-xs font-bold text-state-orchestration disabled:cursor-not-allowed disabled:opacity-40"
           >
             Sign in / Register
           </button>
