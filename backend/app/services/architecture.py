@@ -35,7 +35,9 @@ _STDLIB = {
     "typing", "unittest", "urllib", "uuid", "warnings", "zipfile", "zlib", "secrets", "types",
 }
 
-_PY_IMPORT = re.compile(r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.,\s]+?))\s*(?:#.*)?$", re.M)
+_PY_IMPORT = re.compile(
+    r"^[ \t]*(?:from[ \t]+([\w.]+)[ \t]+import[ \t]+([\w*.,() \t]+)|import[ \t]+([\w., \t]+?))[ \t]*(?:#.*)?$",
+    re.M)
 _JS_IMPORT = re.compile(
     r"(?:import\s+[^'\"]*?from\s+|import\s*\(\s*|require\s*\(\s*|export\s+[^'\"]*?from\s+)['\"]([^'\"]+)['\"]",
     re.S)
@@ -46,11 +48,19 @@ def _kind(rel: str) -> str:
 
 
 def _scan_repo(root: Path) -> tuple[list[dict], dict[str, Path]]:
-    """Collect real files under root, up to MAX_FILES (breadth: shallow paths first)."""
+    """Collect real files under root, up to MAX_FILES (breadth: shallow paths first).
+    Skip-dirs are matched against path parts RELATIVE to the repo root — the repo may
+    itself live under a directory named 'data' or 'build' in the host filesystem."""
     files: list[tuple[str, Path]] = []
     if root.is_dir():
-        candidates = [p for p in root.rglob("*")
-                      if p.is_file() and not (set(p.parts) & SKIP_DIRS) and not p.name.startswith(".")]
+        candidates = []
+        for p in root.rglob("*"):
+            if not p.is_file() or p.name.startswith("."):
+                continue
+            rel_parts = p.relative_to(root).parts[:-1]
+            if set(rel_parts) & SKIP_DIRS:
+                continue
+            candidates.append(p)
         candidates.sort(key=lambda p: (len(p.parts), str(p)))  # shallow files first
         for p in candidates[:MAX_FILES]:
             rel = p.relative_to(root).as_posix()
@@ -59,21 +69,28 @@ def _scan_repo(root: Path) -> tuple[list[dict], dict[str, Path]]:
 
 
 def _resolve_py(from_mod: str | None, names: str, module_to_file: dict[str, str]) -> list[str]:
+    """Resolve python imports to project files. Handles `import a.b`, `from a import b`
+    (b may be a submodule of a namespace package, i.e. no __init__.py), and
+    `from a.b import c`. Standard-library modules are ignored."""
     targets: list[str] = []
-    mods = []
+    mods: list[str] = []
     if from_mod:
         mods.append(from_mod)
+        for n in names.replace("(", "").replace(")", "").split(","):
+            n = n.strip().split(" as ")[0]
+            if n and n != "*":
+                mods.append(f"{from_mod}.{n}")  # `from pkg import submodule`
     else:
-        mods += [n.strip().split(" as ")[0] for n in names.split(",")]
+        mods += [n.strip().split(" as ")[0] for n in names.replace("(", "").replace(")", "").split(",")]
     for m in mods:
-        m = m.strip().split(" as ")[0]
+        m = m.strip()
         if not m or m.split(".")[0] in _STDLIB:
             continue
         # absolute import of a project module: match the longest known prefix
         parts = m.split(".")
         while parts:
             key = "/".join(parts)
-            hit = module_to_file.get(key) or module_to_file.get(key + "/__init__")
+            hit = module_to_file.get(key)
             if hit:
                 targets.append(hit)
                 break
@@ -112,14 +129,16 @@ def scan_architecture(root: Path) -> dict:
     path_set = set(rels)
     path_to_rel = {rel: rel for rel in rels}
 
-    # module-name -> file for python resolution (a/b.py -> 'a.b'; pkg/__init__.py -> 'pkg')
+    # module-name -> file for python resolution, keyed by SLASH-separated path
+    # (a/b.py -> 'a/b'; pkg/__init__.py -> 'pkg') so _resolve_py can look up
+    # import paths directly without a dot/slash conversion bug.
     module_to_file: dict[str, str] = {}
     for rel in rels:
         if rel.endswith(".py"):
-            mod = rel[:-3].replace("/", ".")
+            mod = rel[:-3]  # 'backend/api'
             module_to_file[mod] = rel
             if rel.endswith("__init__.py"):
-                module_to_file[mod[:-12]] = rel
+                module_to_file[mod[: -len("/__init__")]] = rel
 
     edges_set: set[tuple[str, str]] = set()
     packages: dict[str, int] = {}
@@ -136,7 +155,7 @@ def scan_architecture(root: Path) -> dict:
         suffix = "." + rel.rsplit(".", 1)[-1].lower() if "." in rel.rsplit("/", 1)[-1] else ""
         if suffix == ".py":
             for m in _PY_IMPORT.finditer(text[: 200_000]):
-                for tgt in _resolve_py(m.group(1), m.group(2) or "", module_to_file):
+                for tgt in _resolve_py(m.group(1), m.group(2) or m.group(3) or "", module_to_file):
                     if tgt != rel:
                         edges_set.add((rel, tgt))
         elif suffix in (".ts", ".tsx", ".js", ".jsx", ".mjs"):
@@ -148,8 +167,7 @@ def scan_architecture(root: Path) -> dict:
                         packages[tgt[4:]] = packages.get(tgt[4:], 0) + 1
 
     edges = [{"source": s, "target": t} for s, t in sorted(edges_set)]
-    pkg_edges = [{"source": rel, "target": f"pkg:{pkg}", "count": n}
-                 for (rel, pkg), n in sorted(packages.items())]
+    pkg_edges = [{"target": f"pkg:{pkg}", "count": n} for pkg, n in sorted(packages.items())]
 
     by_kind: dict[str, int] = {}
     for rel in rels:

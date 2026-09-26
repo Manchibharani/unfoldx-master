@@ -12,6 +12,7 @@ from app.main import create_app
 
 FAKE = str(Path(__file__).parent / "fake_cli.py")
 FAKE_AGY = str(Path(__file__).parent / "fake_agy.py")
+FAKE_AUTH = str(Path(__file__).parent / "fake_auth_cli.py")
 
 # Hermetic tests: host-installed provider CLIs (claude/codex/bob/agy) must not leak into the
 # sandbox and flip adapter modes from "simulated" to "real". Keep only the Python interpreter's

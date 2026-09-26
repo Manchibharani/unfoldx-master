@@ -8,7 +8,9 @@ from app.adapters.base import RunRequest
 from app.adapters.normalize import claude_event, codex_event, generic_event
 from app.events import GENESIS
 from app.schemas import WorkspaceEvent
-from tests.conftest import FAKE, FAKE_AGY, events, sql, wait_event, wait_for
+from pathlib import Path
+
+from tests.conftest import FAKE, FAKE_AGY, FAKE_AUTH, events, sql, wait_event, wait_for
 
 PROMPT = "Build a login API with FastAPI and a React dashboard, then add tests"
 
@@ -626,6 +628,67 @@ def test_antigravity_event_parsing(tmp_path):
     # ERROR result -> error event (no result event)
     err = adapter.parse_json_event({"event": "result", "result": {"status": "ERROR", "error": "auth failed"}}, {})
     assert [e.kind for e in err] == ["error"]
+
+
+# --------------------------------------------------------------------------- preview + architecture
+def test_files_preview_and_architecture_endpoints(make_client):
+    with make_client() as c:
+        base = "/api/workspaces/demo-workspace"
+        # empty repo: no preview target yet, empty architecture
+        assert c.get(f"{base}/files/preview").json() == {"path": ""}
+        arch = c.get(f"{base}/architecture").json()
+        assert arch["exists"] is False and arch["files"] == []
+        # seed a repo: index.html must win the preview pick
+        repo = Path(c.app.state.ctx.settings.workspaces_root / "demo-workspace" / "repo")
+        (repo / "backend").mkdir(parents=True, exist_ok=True)
+        (repo / "index.html").write_text("<h1>hi</h1>", encoding="utf-8")
+        (repo / "notes.md").write_text("# notes", encoding="utf-8")
+        (repo / "backend" / "api.py").write_text(
+            "import json\nfrom backend import helpers\nimport os\n", encoding="utf-8")
+        (repo / "backend" / "helpers.py").write_text("value = 1\n", encoding="utf-8")
+        assert c.get(f"{base}/files/preview").json() == {"path": "index.html"}
+        body = c.get(f"{base}/files/content", params={"path": "index.html"})
+        assert body.status_code == 200 and "text/html" in body.headers["content-type"]
+        assert c.get(f"{base}/files/content", params={"path": "../escape"}).status_code == 404
+        # architecture: real files + a real import edge (api.py -> helpers.py), stdlib dropped
+        arch = c.get(f"{base}/architecture").json()
+        assert arch["exists"] is True
+        paths = {f["path"] for f in arch["files"]}
+        assert {"index.html", "notes.md", "backend/api.py", "backend/helpers.py"} <= paths
+        assert {"source": "backend/api.py", "target": "backend/helpers.py"} in [
+            {"source": e["source"], "target": e["target"]} for e in arch["edges"]]
+        assert all(not e["source"].endswith("json") for e in arch["edges"])  # stdlib ignored
+        kinds = {f["path"]: f["kind"] for f in arch["files"]}
+        assert kinds["backend/api.py"] == "backend" and kinds["index.html"] == "artifact"
+        assert arch["stats"]["file_count"] >= 4 and arch["stats"]["top_hubs"]
+        # guest (open mode) can read both iframe-facing endpoints without a token
+        assert c.get(f"{base}/files/content", params={"path": "notes.md"}).status_code == 200
+
+
+def test_auth_failure_benches_provider_for_sibling_subtasks(make_client):
+    """A signed-out CLI must be skipped for the REST of the task (long bench), not retried
+    per subtask: second subtask goes straight to the next provider without another doomed
+    attempt on the broken one."""
+    from app.services.orchestrator import AUTH_BENCH_SECONDS
+    with make_client(sim_delay_seconds=0.05) as c:
+        base = "/api/workspaces/demo-workspace"
+        agents = {a["provider"]: a["id"] for a in c.get(f"{base}/agents").json()}
+        for p in ("codex", "github_copilot", "bob"):  # keep claude_code (fake) + gemini (fake agy)
+            c.patch(f"{base}/agents/{agents[p]}", json={"enabled": False})
+        ctx = c.app.state.ctx
+        ctx.settings.claude_cmd = f"{sys.executable} {FAKE_AUTH} {{prompt}}"
+        ctx.settings.claude_plan_cmd = ctx.settings.claude_cmd
+        tid = c.post(f"{base}/tasks", json={"prompt": "Implement the backend API and do a security review"}).json()["id"]
+        wait_event(c, "task_completed", pred=lambda e: e["task_id"] == tid, timeout=30)
+        evts = [e for e in events(c) if e["task_id"] == tid]
+        dispatches = [e for e in by_type(evts, "dispatch_started") if e["payload"].get("mode") == "execute"]
+        claude_attempts = [e for e in dispatches if e["provider"] == "claude_code"]
+        assert claude_attempts, "claude should be tried at least once"
+        assert len(claude_attempts) <= 1, "benched provider must not be retried for sibling subtasks"
+        assert by_type(evts, "task_completed")[-1]["payload"]["status"] == "completed"
+        d = c.get(f"/api/tasks/{tid}").json()
+        assert d["status"] == "completed" and all(s["status"] == "completed" for s in d["subtasks"])
+        assert AUTH_BENCH_SECONDS >= 600
 
 
 # --------------------------------------------------------------------------------------- real routing

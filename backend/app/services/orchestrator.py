@@ -288,7 +288,7 @@ class Orchestrator:
                     except RouteFailure:
                         decision = None
                 if decision is None:
-                    ws_state = self._running.get(ws, {})
+                    ws_state = self.running.get(ws, {})
                     # Coordination: while siblings are in flight, rotate near-equal candidates across
                     # distinct providers (avoiding whoever just took the previous dispatch) so parallel
                     # work spreads by strength instead of piling onto one AI. Only when more than one

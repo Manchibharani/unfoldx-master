@@ -1,14 +1,23 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Live preview shows the app the agents are building — not this app. The
- * iframe renders a separately-running generated-workspace preview. The
- * dashboard origin is rejected to avoid embedding this app inside itself.
+ * Live preview shows the app the agents are building — not this app.
+ *
+ * Auto-discovery: when no URL is configured (env var / localStorage / manual),
+ * the component asks the backend which artifact to show
+ * (GET /api/workspaces/{id}/files/preview — picks index.html, then any .html,
+ * then the first text file) and renders it from the backend origin. The
+ * dashboard origin itself is rejected to avoid embedding this app inside
+ * itself, and the iframe URL is refreshed as agents produce new files.
  */
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const CONFIGURED_URL = process.env.NEXT_PUBLIC_PREVIEW_URL ?? "";
 const PREVIEW_STORAGE_KEY = "unfoldx.preview_url";
+const DISCOVERY_POLL_MS = 8000;
+
+type PreviewSource = { url: string; origin: "discovered" | "configured" | "manual" };
 
 function isUsablePreviewUrl(url: string): boolean {
   try {
@@ -60,22 +69,59 @@ function CloseIcon() {
   );
 }
 
-export function LivePreview() {
+export function LivePreview({ workspaceId = "demo-workspace" }: { workspaceId?: string }) {
   const [open, setOpen] = useState(false);
   const [key, setKey] = useState(0);
-  const [urlInput, setUrlInput] = useState(CONFIGURED_URL);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [preview, setPreview] = useState<PreviewSource | null>(null);
   const [urlError, setUrlError] = useState("");
+  const [artifacts, setArtifacts] = useState(false);
+  const [discoveryNonce, setDiscoveryNonce] = useState(0);
+  const configuredRef = useRef(false); // user/config pinned an explicit URL: stop discovery
 
   useEffect(() => {
+    if (configuredRef.current) return; // manual/configured URL pinned: discovery paused
+    // No explicit URL: discover what the agents built. Runs once and then polls,
+    // so the preview appears (and updates) as soon as artifacts exist.
+    let cancelled = false;
+    const discover = () => {
+      fetch(`${API_URL}/api/workspaces/${workspaceId}/files/preview`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+        .then((j: { path: string }) => {
+          if (cancelled || !j.path) return;
+          setArtifacts(true);
+          setPreview((current) => {
+            const url = `${API_URL}/api/workspaces/${workspaceId}/files/content?path=${encodeURIComponent(j.path)}`;
+            if (current?.url === url) return current;
+            return { url, origin: "discovered" };
+          });
+        })
+        .catch(() => {
+          if (!cancelled) setArtifacts(false);
+        });
+    };
+    discover();
+    const timer = window.setInterval(discover, DISCOVERY_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [workspaceId, discoveryNonce]);
+
+  // One-time setup: pick up a pinned URL from storage/env before discovery takes over.
+  useEffect(() => {
     const savedUrl = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
-    const initialUrl = savedUrl && isUsablePreviewUrl(savedUrl)
-      ? savedUrl
-      : CONFIGURED_URL && isUsablePreviewUrl(CONFIGURED_URL)
-        ? CONFIGURED_URL
-        : "";
-    setUrlInput(initialUrl);
-    if (initialUrl) setPreviewUrl(initialUrl);
+    if (savedUrl && isUsablePreviewUrl(savedUrl)) {
+      configuredRef.current = true;
+      setUrlInput(savedUrl);
+      setPreview({ url: savedUrl, origin: "manual" });
+      return;
+    }
+    if (CONFIGURED_URL && isUsablePreviewUrl(CONFIGURED_URL)) {
+      configuredRef.current = true;
+      setUrlInput(CONFIGURED_URL);
+      setPreview({ url: CONFIGURED_URL, origin: "configured" });
+    }
   }, []);
 
   useEffect(() => {
@@ -87,7 +133,8 @@ export function LivePreview() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const refresh = () => setKey((k) => k + 1);
+  const refresh = useCallback(() => setKey((k) => k + 1), []);
+
   const connectPreview = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const candidate = urlInput.trim();
@@ -95,10 +142,25 @@ export function LivePreview() {
       setUrlError("Enter an http(s) URL on a different host, such as http://localhost:3001.");
       return;
     }
-    window.localStorage.setItem(PREVIEW_STORAGE_KEY, candidate);
-    setUrlInput(candidate);
-    setPreviewUrl(candidate);
+    configuredRef.current = true;
+    try {
+      window.localStorage.setItem(PREVIEW_STORAGE_KEY, candidate);
+    } catch {
+      // storage unavailable — preview still works for this session
+    }
+    setPreview({ url: candidate, origin: "manual" });
     setUrlError("");
+  };
+
+  const useDiscovered = () => {
+    configuredRef.current = false;
+    try {
+      window.localStorage.removeItem(PREVIEW_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    setPreview(null);
+    setDiscoveryNonce((n) => n + 1); // re-run discovery immediately
   };
 
   const urlForm = (
@@ -120,7 +182,7 @@ export function LivePreview() {
     </form>
   );
 
-  if (!previewUrl) {
+  if (!preview) {
     return (
       <section>
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -129,11 +191,14 @@ export function LivePreview() {
         <div className="rounded-md bg-ink-800/50 p-3">
           <div className="mb-2 flex items-center gap-2 text-parchment/80">
             <MonitorOffIcon />
-            <p className="text-xs font-medium">Preview not connected</p>
+            <p className="text-xs font-medium">
+              {artifacts ? "Detecting preview…" : "No preview yet — waiting for the agents to build something"}
+            </p>
           </div>
           {urlForm}
           <p className="mt-2 text-[11px] leading-relaxed text-muted/70">
-            Enter the URL of the running app you want to preview. The backend does not start a preview server automatically.
+            The preview picks up files the agents create in this workspace automatically
+            (index.html first), or connect any running app URL above.
           </p>
           {urlError && <p role="alert" className="mt-1 text-[11px] text-state-conflict">{urlError}</p>}
         </div>
@@ -143,11 +208,12 @@ export function LivePreview() {
 
   const previewHost = (() => {
     try {
-      return new URL(previewUrl).host;
+      return new URL(preview.url).host;
     } catch {
-      return previewUrl;
+      return preview.url;
     }
   })();
+  const isDiscovered = preview.origin === "discovered";
 
   return (
     <>
@@ -155,6 +221,16 @@ export function LivePreview() {
         <div className="mb-2 flex items-center justify-between gap-2">
           <h2 className="text-sm font-medium text-muted">Live preview</h2>
           <div className="flex items-center gap-1">
+            {preview.origin === "manual" && (
+              <button
+                type="button"
+                onClick={useDiscovered}
+                title="Go back to auto-detected workspace artifacts"
+                className="rounded-sm px-1.5 py-1 text-[9px] text-state-inactive hover:bg-ink-800 hover:text-parchment"
+              >
+                Auto
+              </button>
+            )}
             <button
               type="button"
               onClick={refresh}
@@ -182,9 +258,16 @@ export function LivePreview() {
         <div className="overflow-hidden rounded-md border border-ink-700 bg-ink-900">
           <div className="flex items-center gap-2 border-b border-ink-700 px-3 py-2">
             <span className="h-2 w-2 shrink-0 rounded-full bg-state-running" />
-            <span className="truncate font-mono text-[10px] text-muted">{previewHost}</span>
+            <span className="truncate font-mono text-[10px] text-muted">
+              {isDiscovered ? "workspace artifact" : previewHost}
+            </span>
+            {isDiscovered && (
+              <span className="shrink-0 rounded-full border border-state-running/30 bg-state-running/10 px-1.5 py-0.5 text-[8px] uppercase tracking-wide text-state-running">
+                auto
+              </span>
+            )}
             <a
-              href={previewUrl}
+              href={preview.url}
               target="_blank"
               rel="noreferrer"
               className="ml-auto shrink-0 text-[10px] font-medium text-state-orchestration hover:text-parchment"
@@ -194,9 +277,9 @@ export function LivePreview() {
           </div>
           <iframe
             key={key}
-            src={previewUrl}
+            src={preview.url}
             title="Live preview of the app the agents are building"
-            className="h-52 w-full border-0 bg-white"
+            className="h-[26rem] w-full border-0 bg-white"
             allow="fullscreen"
           />
         </div>
@@ -213,7 +296,7 @@ export function LivePreview() {
           >
             <div className="flex items-center gap-2 border-b border-ink-700 px-4 py-2.5">
               <span className="h-2 w-2 shrink-0 rounded-full bg-state-running" />
-              <span className="truncate font-mono text-xs text-parchment">{previewHost}</span>
+              <span className="truncate font-mono text-xs text-parchment">{isDiscovered ? "workspace artifact" : previewHost}</span>
               <div className="ml-auto flex items-center gap-1">
                 <button
                   type="button"
@@ -224,7 +307,7 @@ export function LivePreview() {
                   Refresh
                 </button>
                 <a
-                  href={previewUrl}
+                  href={preview.url}
                   target="_blank"
                   rel="noreferrer"
                   className="rounded-sm px-2 py-1 text-[10px] font-medium text-state-orchestration hover:text-parchment"
@@ -243,7 +326,7 @@ export function LivePreview() {
             </div>
             <iframe
               key={key}
-              src={previewUrl}
+              src={preview.url}
               title="Live preview (expanded)"
               className="h-full w-full flex-1 border-0 bg-white"
               allow="fullscreen"

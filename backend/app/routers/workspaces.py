@@ -21,14 +21,24 @@ _PREVIEW_PREFERRED_NAMES = ("index.html",)
 
 
 def _previewable_file(files):
-    """Pick the file to show in the auto-preview: index.html > any other .html > first text file."""
+    """Pick the file to show in the auto-preview. Root-level artifacts (what agents build
+    as the demoable page) win over files inside scaffolded app dirs, whose index.html
+    usually needs a bundler and renders blank in an iframe."""
+    def is_html(path):
+        return path.rsplit("/", 1)[-1].rsplit(".", 1)[-1].lower() in ("html", "htm")
+    root_html = [f["path"] for f in files if "/" not in f["path"] and is_html(f["path"])]
     for name in _PREVIEW_PREFERRED_NAMES:
+        if name in root_html:
+            return name
+    if root_html:
+        return root_html[0]
+    for name in _PREVIEW_PREFERRED_NAMES:  # nested index.html as a fallback
         for f in files:
             if f["path"] == name:
-                return f["path"]
-    for f in files:
-        if f["path"].rsplit("/", 1)[-1].rsplit(".", 1)[-1].lower() in ("html", "htm"):
-            return f["path"]
+                return name
+    nested_html = [f["path"] for f in files if is_html(f["path"])]
+    if nested_html:
+        return min(nested_html, key=lambda p: (p.count("/"), p))
     for f in files:
         if f["text"]:
             return f["path"]
