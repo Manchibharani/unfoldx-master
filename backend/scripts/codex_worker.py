@@ -56,7 +56,7 @@ async def run_job(ws, job: dict) -> None:
 
 async def main() -> None:
     if not BACKEND_WS or not TOKEN:
-        raise SystemExit("Set UNFOLDX_BACKEND_WS and UNFOLDX_WORKER_TOKEN.")
+        raise SystemExit("Set UNFOLDX_BACKEND_WS and UNFOLDX_AGENT_BRIDGE_TOKEN.")
     uri = f"{BACKEND_WS}/ws/agent-bridge?token={TOKEN}"
     print(f"UNFOLD X Codex worker → {BACKEND_WS}")
     print(f"Local repo: {REPO_ROOT}")
