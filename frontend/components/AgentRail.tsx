@@ -8,7 +8,7 @@ import type { ControlAction } from "@/lib/useOrchestration";
 import type { Permissions } from "@/lib/permissions";
 import { ProviderLogo } from "./ProviderLogo";
 
-const ADDABLE_PROVIDERS: Provider[] = ["bob", "claude_code", "codex", "github_copilot", "gemini"];
+const ADDABLE_PROVIDERS: Provider[] = ["bob", "claude_code", "opencode", "codex", "github_copilot", "gemini"];
 
 /** The judge scenario the demo button submits to the live backend. */
 const DEMO_PROMPT =

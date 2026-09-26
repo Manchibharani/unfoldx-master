@@ -71,6 +71,35 @@ _PASS_ENV = ("PATH", "LANG", "LC_ALL", "TERM", "TMPDIR", "SYSTEMROOT", "TEMP", "
 _HOST_SESSION_ENV = ("HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH", "XDG_CONFIG_HOME")
 
 
+_AUTH_PROBE_SENTINEL = "UAW_AUTH_PROBE_OK"
+
+
+async def _run_auth_probe(argv: list[str], timeout: float = 20.0) -> bool:
+    """Run a tiny non-interactive prompt and return True when the CLI produced a real model
+    response (i.e. it is signed in and funded). Shared by every host-session adapter."""
+    if _use_threaded_subprocess():
+        proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                stdin=subprocess.DEVNULL, env=sandbox_env({}, None, True))
+        try:
+            out, _ = await asyncio.to_thread(proc.communicate, timeout)
+        except Exception:
+            proc.kill()
+            return False
+    else:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                stdin=asyncio.subprocess.DEVNULL, env=sandbox_env({}, None, True))
+        except (OSError, FileNotFoundError):
+            return False
+        try:
+            out, _ = await asyncio.wait_for(proc.communicate(), timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            return False
+    return _AUTH_PROBE_SENTINEL in (out or b"").decode(errors="replace")
+
+
 def _use_threaded_subprocess() -> bool:
     """Use stdlib Popen when Uvicorn's Windows reload loop is a SelectorEventLoop."""
     if os.name != "nt":
@@ -182,6 +211,12 @@ class CliAdapter:
 
     def available(self) -> bool:
         return self.resolved_executable() is not None
+
+    async def check_auth(self) -> bool:
+        """Cheap host-session login probe. Default: NOT verified (False) so callers treat
+        host-session providers as unproven instead of assuming a login exists. Api-key-backed
+        adapters don't need this (the key itself is the credential)."""
+        return False
 
     # ---- parsing (overridden per provider) ---------------------------------------------------------
     def parse_json_event(self, obj: dict, state: dict) -> list[AgentEvent]:

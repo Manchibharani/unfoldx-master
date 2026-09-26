@@ -2,12 +2,31 @@
 adjusted to whatever the installed CLI version actually accepts, without code changes."""
 from __future__ import annotations
 
+import os
 import secrets
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _load_env_values(env_file: Path) -> dict[str, str]:
+    """KEY=VALUE pairs from a .env file (no interpolation). Unknown keys matter: provider API
+    keys (BOBSHELL_API_KEY, OPENAI_API_KEY, ...) live here and must reach the CLIs' child
+    processes even though pydantic-settings ignores fields it has no model for."""
+    out: dict[str, str] = {}
+    if not env_file.is_file():
+        return out
+    for raw in env_file.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key:
+            out[key] = value
+    return out
 
 
 class Settings(BaseSettings):
@@ -72,8 +91,6 @@ class Settings(BaseSettings):
     # --- provider CLI command templates ({prompt} becomes ONE argv token; no shell is involved) --
     bob_cmd: str = "bob run --output-format stream-json {prompt}"
     bob_plan_cmd: str = "bob run --mode plan --output-format stream-json {prompt}"
-    claude_cmd: str = "claude -p {prompt} --output-format stream-json --verbose --permission-mode acceptEdits"
-    claude_plan_cmd: str = "claude -p {prompt} --output-format stream-json --verbose --permission-mode plan"
     # --skip-git-repo-check: tasks run in per-workspace dirs under data/workspaces, which are
     # not git repositories — without the flag codex 0.157 refuses to start there.
     # -s danger-full-access: codex's internal workspace-write sandbox helper fails on Windows
@@ -85,12 +102,18 @@ class Settings(BaseSettings):
     codex_plan_cmd: str = "codex exec --json --skip-git-repo-check -s read-only {prompt}"
     gemini_cmd: str = "agy -p {prompt} --output-format stream-json --mode accept-edits"
     gemini_plan_cmd: str = "agy -p {prompt} --output-format stream-json --mode plan"
+    # opencode: `run --format json` emits NDJSON (step_start / text / tool_use / step_finish with
+    # token counts). --auto approves write permissions non-interactively (the backend provides the
+    # real containment: per-workspace cwd, scrubbed env, timeout, process-group kill).
+    # Plan mode uses opencode's built-in read-only `plan` agent.
+    opencode_cmd: str = "opencode run --auto --format json {prompt}"
+    opencode_plan_cmd: str = "opencode run --agent plan --format json {prompt}"
+    opencode_api_key_env: str = "OPENCODE_API_KEY"
     copilot_api_key_env: str = "GITHUB_TOKEN"
     copilot_cmd: str = "copilot -p {prompt} --allow-all-tools"
     copilot_plan_cmd: str = "copilot -p {prompt}"
     # Env var each CLI reads its API key from (Bob's is an assumption - override to match Bob Shell).
     bob_api_key_env: str = "BOBSHELL_API_KEY"
-    claude_api_key_env: str = "ANTHROPIC_API_KEY"
     codex_api_key_env: str = "OPENAI_API_KEY"
     gemini_api_key_env: str = "GEMINI_API_KEY"
 
@@ -106,6 +129,14 @@ class Settings(BaseSettings):
     def _finalize(self) -> "Settings":
         self.data_dir = Path(self.data_dir).resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        # Provider key VALUES (BOBSHELL_API_KEY etc.) are not model fields, so pydantic-settings
+        # parses .env and drops them. Re-apply the whole file into the process environment
+        # (without overriding real env vars) so entitlement.credential_env() can find the keys
+        # and inject them into provider subprocesses. This is the fix for ".env documents the
+        # key NAME but the VALUE is never used".
+        for key, value in _load_env_values(Path(".env")).items():
+            if value and key not in os.environ:
+                os.environ[key] = value
         if not self.database_url:
             self.database_url = f"sqlite+aiosqlite:///{self.data_dir / 'workspace.db'}"
         if not self.secret_key:

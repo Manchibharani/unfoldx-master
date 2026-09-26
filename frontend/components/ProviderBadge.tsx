@@ -4,6 +4,7 @@ import { ProviderLogo } from "./ProviderLogo";
 const LABEL: Record<Provider, string> = {
   bob: "Bob",
   claude_code: "Claude",
+  opencode: "OpenCode",
   codex: "ChatGPT",
   github_copilot: "GitHub Copilot",
   gemini: "Antigravity",
@@ -14,6 +15,7 @@ const LABEL: Record<Provider, string> = {
 const STYLE: Record<Provider, { border: string; bg: string; text: string }> = {
   bob: { border: "rgba(124,110,232,0.45)", bg: "rgba(124,110,232,0.12)", text: "#9585F0" },
   claude_code: { border: "rgba(199,205,212,0.40)", bg: "rgba(199,205,212,0.10)", text: "#C7CDD4" },
+  opencode: { border: "rgba(224,167,91,0.40)", bg: "rgba(224,167,91,0.10)", text: "#E0A75B" },
   codex: { border: "rgba(16,163,127,0.40)", bg: "rgba(16,163,127,0.10)", text: "#10A37F" },
   github_copilot: { border: "rgba(155,108,255,0.40)", bg: "rgba(155,108,255,0.10)", text: "#9B6CFF" },
   gemini: { border: "rgba(59,142,232,0.40)", bg: "rgba(59,142,232,0.10)", text: "#3B8EE8" },

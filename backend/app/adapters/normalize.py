@@ -31,10 +31,7 @@ def _usage_event(u: dict | None) -> AgentEvent | None:
     tout = _int(u.get("output_tokens"), u.get("completion_tokens"), u.get("candidatesTokenCount"), u.get("outputTokens"))
     if tin or tout:
         return AgentEvent("usage", tokens_in=tin, tokens_out=tout)
-    return None
-
-
-# Vendor error lines that describe the CLI's own login/credential state. These are normal
+    return None# Vendor error lines that describe the CLI's own login/credential state. These are normal
 # when a host CLI is installed but not signed in: recording them as hard errors fails every
 # subtask. Demoted to warning log lines, and the provider is benched via provider_failed()
 # so the router re-routes the work to an agent that can actually run.
@@ -48,10 +45,27 @@ _CLI_AUTH_PATTERNS = (
     "insufficient credits",
 )
 
+# The CLI is signed in but its headless permission policy refuses the tool call
+# (seen live: Antigravity auto-denying Get-ChildItem). Distinct provider status:
+# re-authing will NOT fix it; the CLI's permission mode must allow the tools.
+_PERMISSION_PATTERNS = (
+    "was auto-denied",
+    "permission denied by policy",
+    "denied by policy",
+    "auto-denied",
+    "requires approval",
+    "permission_mode",
+    "tool use denied",
+)
 
 def is_cli_auth_error(text: str) -> bool:
     t = (text or "").lower()
     return any(p in t for p in _CLI_AUTH_PATTERNS)
+
+
+def is_cli_permission_error(text: str) -> bool:
+    t = (text or "").lower()
+    return any(p in t for p in _PERMISSION_PATTERNS)
 
 
 def claude_event(obj: dict, state: dict) -> list[AgentEvent]:
@@ -191,6 +205,58 @@ def _agy_usage(u: dict | None) -> AgentEvent | None:
     if tin or tout:
         return AgentEvent("usage", tokens_in=tin, tokens_out=tout)
     return None
+
+
+def opencode_event(obj: dict, state: dict) -> list[AgentEvent]:
+    """opencode `run --format json` NDJSON: {type: step_start|text|tool_use|step_finish, part: {...}}.
+    step_finish carries authoritative token counts (part.tokens) and cost. tool_use parts carry
+    tool name + input (file_path for read/write tools, command for bash)."""
+    out: list[AgentEvent] = []
+    t = _s(obj.get("type"))
+    part = obj.get("part") or {}
+    pt = _s(part.get("type"))
+    if t == "text" or (t == "step_start" and pt == "text") or pt == "text":
+        txt = _s(part.get("text"))
+        if txt.strip() and not txt.startswith("<"):
+            state["last_text"] = txt
+            out.append(AgentEvent("log", text=txt))
+    elif t == "tool_use" or pt == "tool":
+        name = _s(part.get("tool")) or _s(part.get("name"))
+        inp = part.get("state") or {}
+        inp = inp.get("input") or inp if isinstance(inp, dict) else {}
+        path = _s(inp.get("filePath")) or _s(inp.get("file_path")) or _s(inp.get("path"))
+        cmd = _s(inp.get("command"))
+        detail = path or cmd[:160]
+        out.append(AgentEvent("log", text=f"tool: {name} {detail}".strip()))
+        if name in ("write", "edit", "patch", "multiedit", "write_file", "edit_file") and path:
+            out.append(AgentEvent("file", files=[path]))
+        elif name == "bash" and cmd:
+            for token in cmd.replace(";", " ").replace("|", " ").replace(">", " ").split():
+                if token in (">", ">>") or not token or token.startswith("-"):
+                    continue
+                if token.endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".json", ".md",
+                                   ".sql", ".yml", ".yaml", ".toml", ".sh", ".txt")) and "/" not in token[:2]:
+                    state.setdefault("bash_files", set()).add(token)
+                elif token in ("python", "python3", "pip", "npm", "npx", "node"):
+                    break
+    elif t == "step_finish" or pt == "step-finish":
+        tok = part.get("tokens") or {}
+        tin = _int(tok.get("input"), tok.get("inputTokens"), tok.get("prompt_tokens"))
+        tin += _int((tok.get("cache") or {}).get("read") if isinstance(tok.get("cache"), dict) else 0)
+        tout = _int(tok.get("output"), tok.get("outputTokens"), tok.get("completion_tokens"))
+        tout += _int(tok.get("reasoning"))
+        ue = _usage_event({"input_tokens": tin, "output_tokens": tout})
+        if ue:
+            out.append(ue)
+        cost = part.get("cost")
+        if isinstance(cost, (int, float)) and cost > 0:
+            out.append(AgentEvent("cost_total", cost_usd=float(cost)))
+        if part.get("reason") == "stop":
+            bf = state.pop("bash_files", None)
+            if bf:
+                out.append(AgentEvent("file", files=sorted(bf)))
+            out.append(AgentEvent("result", text=state.get("last_text", "")))
+    return out
 
 
 def generic_event(obj: dict, state: dict) -> list[AgentEvent]:

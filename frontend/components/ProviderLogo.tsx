@@ -4,6 +4,7 @@ import type { Provider } from "@/lib/types";
 const LOGO_PATH: Partial<Record<Provider, string>> = {
   bob: "/logos/bob.png",
   claude_code: "/logos/claude.svg",
+  opencode: "/logos/opencode.svg",
   codex: "/logos/codex.webp",
   github_copilot: "/logos/github-copilot.svg",
   gemini: "/logos/gemini.png",

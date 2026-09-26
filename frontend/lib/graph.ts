@@ -10,11 +10,12 @@ import type { Provider, WorkspaceEvent } from "./types";
  */
 
 /** Providers shown as agent nodes around the hub. Bob is the hub itself. */
-export const AGENT_PROVIDERS: Provider[] = ["claude_code", "codex", "github_copilot", "gemini"];
+export const AGENT_PROVIDERS: Provider[] = ["claude_code", "opencode", "codex", "github_copilot", "gemini"];
 
 export const PROVIDER_LABEL: Record<Provider, string> = {
   bob: "Bob",
   claude_code: "Claude",
+  opencode: "OpenCode",
   codex: "ChatGPT",
   github_copilot: "GitHub Copilot",
   gemini: "Antigravity",
@@ -24,6 +25,7 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
 export const PROVIDER_ACCENT: Record<Provider, string> = {
   bob: "#7C6EE8",
   claude_code: "#C7CDD4",
+  opencode: "#E0A75B",
   codex: "#10A37F",
   github_copilot: "#9B6CFF",
   gemini: "#3B8EE8",
@@ -33,6 +35,7 @@ export const PROVIDER_ACCENT: Record<Provider, string> = {
 export const PROVIDER_CAPABILITIES: Record<Provider, string[]> = {
   bob: ["decomposition", "coordination", "repo-context"],
   claude_code: ["implementation", "refactor", "tests"],
+  opencode: ["implementation", "refactor", "tests"],
   codex: ["algorithms", "optimization", "implementation"],
   github_copilot: ["implementation", "refactor", "tests"],
   gemini: ["research", "docs", "analysis"],

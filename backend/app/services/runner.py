@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 
 from ..adapters.base import AdapterUnavailable, RunHandle, RunRequest
-from ..adapters.normalize import is_cli_auth_error
+from ..adapters.normalize import is_cli_auth_error, is_cli_permission_error
 from ..catalog import estimate_cost
 from ..models import Agent
 
@@ -28,6 +28,7 @@ class RunOutcome:
     tripped: bool = False
     stopped: bool = False
     error: str | None = None
+    error_kind: str | None = None   # None | "auth" | "permission" | "crash"
     session_id: str = ""
     simulated: bool = False
 
@@ -73,6 +74,7 @@ class AgentRunner:
         error_seen: str | None = None
         hard_cli_failure = False
         auth_error_text = ""
+        permission_error_text = ""
         gen = adapter.stream(handle, req)
         try:
             async for ev in gen:
@@ -117,7 +119,16 @@ class AgentRunner:
                 elif ev.kind == "result":
                     result_text = ev.text or result_text
                 elif ev.kind == "error":
-                    if is_cli_auth_error(ev.text):
+                    if is_cli_permission_error(ev.text):
+                        # Signed-in but the headless permission policy refused the tool call.
+                        # Distinct status so the UI can say "fix the CLI's permission mode",
+                        # not "log in". Still a hard failure: the run cannot continue.
+                        hard_cli_failure = True
+                        permission_error_text = ev.text[:MAX_LINE]
+                        await ctx.events.append(ws_id, "log_line", {
+                            "line": permission_error_text, "stream": "stderr", "level": "warning",
+                            "provider_status": "cli_permission_denied"}, **ident)
+                    elif is_cli_auth_error(ev.text):
                         # The CLI itself is not signed in / not funded: demote to a warning log
                         # line (keeps the event log honest without red-failing every subtask)
                         # and mark the run as a hard CLI failure so the orchestrator benches the
@@ -143,10 +154,18 @@ class AgentRunner:
 
         out.stopped = handle.stop_requested and not out.tripped
         out.final_text = result_text or "\n".join(buffer[-20:])
-        out.error = error_seen or (f"{adapter.display_name} is not signed in: {auth_error_text}" if hard_cli_failure else None)
+        if error_seen:
+            out.error = error_seen
+        elif hard_cli_failure and permission_error_text:
+            out.error = f"{adapter.display_name} denied a tool call (headless permission policy): {permission_error_text}"
+            out.error_kind = "permission"
+        elif hard_cli_failure:
+            out.error = f"{adapter.display_name} is not signed in: {auth_error_text}"
+            out.error_kind = "auth"
         out.ok = not (out.tripped or out.stopped or out.error) and (handle.simulated or handle.exit_code in (0, None))
         if not out.ok and not out.error and not (out.tripped or out.stopped):
             out.error = f"{adapter.display_name} exited with code {handle.exit_code}"
+            out.error_kind = "crash"
 
         # Stream the agent's raw response to the UI as one agent_output event
         # (the Output panel groups these per task). Only successful runs emit:

@@ -34,13 +34,17 @@ async def create_workspace(ctx, session, name: str, owner: User, workspace_id: s
 
 
 async def seed_demo(ctx) -> None:
-    """open-auth mode only: make `demo-workspace` (the frontend's default) exist with all providers connected."""
+    """open-auth mode only: make `demo-workspace` (the frontend's default) exist with all providers connected.
+    Also heals connections when the catalog grew since the workspace was created (e.g. a new provider
+    was added to the backend): an existing workspace would otherwise never see it and routing would
+    silently skip a fully-working CLI."""
     s = ctx.settings
     async with ctx.db.sessionmaker() as session:
         guest = await get_or_create_guest(session)
         ws = await session.get(Workspace, s.demo_workspace_id)
-        if ws is not None:
-            return
-        await create_workspace(ctx, session, "Demo Workspace", guest, s.demo_workspace_id)
+        if ws is None:
+            await create_workspace(ctx, session, "Demo Workspace", guest, s.demo_workspace_id)
+    connected = {c.provider for c in await ctx.entitlement.list_conns(s.demo_workspace_id)}
     for p in PROVIDERS:
-        await ctx.entitlement.connect(s.demo_workspace_id, p, user_id=guest.id, plan="demo")
+        if p not in connected:
+            await ctx.entitlement.connect(s.demo_workspace_id, p, user_id=guest.id, plan="demo")

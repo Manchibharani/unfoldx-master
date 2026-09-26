@@ -204,6 +204,43 @@ export const budgetApi = {
   },
 };
 
+/** GET /api/workspaces/{id}/providers — entitlement + credential state per connected provider. */
+export interface ProviderStatus {
+  provider: string;
+  display_name: string;
+  cli_available: boolean;
+  cli_version: string | null;
+  mode: "real" | "simulated" | "unavailable";
+  auth_type: "api_key" | "host_session" | null;
+  /** Resolved credential state: api_key (stored/env), host_session (verified login),
+   *  signed_out (CLI installed but login probe failed), no_credentials, disconnected. */
+  auth_state: string;
+  authenticated: boolean;
+  credential_stored: boolean;
+  env_key_present: boolean;
+  credential_hint: string | null;
+  connected: boolean;
+  plan: string | null;
+  quota: { monthly_request_quota: number; requests_used: number; requests_remaining: number } | null;
+  budget: { cap_usd: number; spent_usd: number; remaining_usd: number } | null;
+}
+
+export const providerApi = {
+  list(workspaceId: string): Promise<ProviderStatus[]> {
+    return apiFetch(`/api/workspaces/${workspaceId}/providers`);
+  },
+  /** Store an API key for a provider (encrypted at rest; wins over env/.env values). */
+  connectApiKey(workspaceId: string, provider: string, apiKey: string): Promise<ProviderStatus> {
+    return apiFetch(`/api/workspaces/${workspaceId}/providers`, {
+      method: "POST",
+      body: JSON.stringify({ provider, api_key: apiKey, plan: "user" }),
+    });
+  },
+  refresh(workspaceId: string, provider: string): Promise<ProviderStatus> {
+    return apiFetch(`/api/workspaces/${workspaceId}/providers/${provider}/refresh`, { method: "POST" });
+  },
+};
+
 export const workspaceApi = {
   /** The caller's role in this workspace (view/control/approve) + name/owner. */
   getInfo(workspaceId: string): Promise<WorkspaceInfo> {

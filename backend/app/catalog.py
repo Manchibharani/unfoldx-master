@@ -15,11 +15,11 @@ PROVIDERS: dict[str, dict] = {
         # Bob usage is credit-based; USD conversion is a placeholder to be set from the hackathon account.
         "pricing": {"model": "credits", "usd_per_credit": 0.05, "credits_per_mtok": 20.0},
     },
-    "claude_code": {
-        "display_name": "Claude", "default_model": "claude",
-        "capabilities": {"backend": .90, "refactor": .90, "debugging": .90, "frontend": .85, "testing": .85,
-                         "architecture": .80, "docs": .80, "security": .80, "planning": .75, "data": .75, "devops": .70},
-        "pricing": {"model": "token", "input_per_mtok": 3.0, "output_per_mtok": 15.0},
+    "opencode": {
+        "display_name": "OpenCode", "default_model": "opencode",
+        "capabilities": {"frontend": .88, "refactor": .85, "testing": .82, "backend": .80, "debugging": .80,
+                         "architecture": .78, "docs": .75, "security": .70, "data": .70, "planning": .70, "devops": .68},
+        "pricing": {"model": "token", "input_per_mtok": 2.0, "output_per_mtok": 8.0},
     },
     "codex": {
         "display_name": "ChatGPT", "default_model": "codex",

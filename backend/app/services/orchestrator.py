@@ -13,6 +13,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import select, update
 
@@ -28,6 +29,12 @@ TERMINAL = {"completed", "failed", "cancelled"}
 AUTH_FAILURE_HINTS = ("not signed in", "not logged in", "please run /login", "unauthorized", "invalid api key",
                       "authentication", "api key", "credit balance")
 AUTH_BENCH_SECONDS = 600.0  # a signed-out CLI cannot recover mid-task; bench it for the whole task
+# Attachments (design templates, PRDs, specs) are copied verbatim into prompts so agents build
+# to the actual spec instead of a filename. Bounded so a huge upload cannot blow the context.
+ATTACH_TEXT_SUFFIXES = (".md", ".txt", ".html", ".htm", ".css", ".js", ".json", ".csv", ".svg", ".xml",
+                        ".yml", ".yaml", ".py", ".ts", ".tsx", ".rst")
+ATTACH_MAX_CHARS_PER_FILE = 6000
+ATTACH_MAX_TOTAL_CHARS = 24000
 
 
 def _looks_like_auth_failure(msg: str) -> bool:
@@ -61,6 +68,29 @@ class TaskRuntime:
     plan_handle: RunHandle | None = None
     main: asyncio.Task | None = None
     seen_runtime_conflicts: set = field(default_factory=set)
+
+
+def _attachment_texts(attachments: list) -> list[tuple[str, str]]:
+    """(filename, bounded text content) for text-like attachments; binaries are named only."""
+    out: list[tuple[str, str]] = []
+    budget = ATTACH_MAX_TOTAL_CHARS
+    for a in attachments:
+        name = getattr(a, "filename", "file")
+        path = getattr(a, "path", "")
+        text = ""
+        if path and name.lower().endswith(ATTACH_TEXT_SUFFIXES):
+            try:
+                raw = Path(path).read_text(encoding="utf-8", errors="replace")[:max(0, budget)]
+                text = raw[:ATTACH_MAX_CHARS_PER_FILE]
+                budget -= len(text)
+            except OSError:
+                text = ""
+        if budget <= 0 and not text:
+            continue
+        out.append((name, text))
+        if budget <= 0:
+            break
+    return out
 
 
 class Orchestrator:
@@ -114,7 +144,10 @@ class Orchestrator:
             if c is None or b is None:
                 continue
             # A provider bench-cooldown counts as temporarily unavailable for real runs; the
-            # simulated fallback stays usable so the pipeline keeps flowing.
+            # simulated fallback stays usable so the pipeline keeps flowing. Credential truth
+            # (API key in DB/env, verified CLI login) is surfaced in provider_status(); a
+            # dispatch that still hits a signed-out CLI fails fast, benches it, and the
+            # router re-routes — no per-dispatch login probe (too slow/costly here).
             cli_available = self.ctx.adapters[a.provider].available() and now >= self.provider_cooldowns.get(a.provider, 0.0)
             quota = None
             if c.pricing.get("model") == "seat" and c.pricing.get("monthly_request_quota"):
@@ -183,7 +216,8 @@ class Orchestrator:
         bob_connected = bob is not None and any(c.provider == "bob" and c.enabled for c in cands)
         if bob_connected:
             prompt = build_plan_prompt(task.prompt, [a.filename for a in atts],
-                                       [{"provider": c.provider, "capabilities": c.capabilities} for c in cands if c.enabled])
+                                       [{"provider": c.provider, "capabilities": c.capabilities} for c in cands if c.enabled],
+                                       attachment_texts=_attachment_texts(atts))
             req = RunRequest(prompt=prompt, cwd=self.repo_dir(ws), mode="plan", model=bob.model,
                              timeout=self.ctx.settings.plan_timeout_seconds, title="Bob Plan-mode decomposition")
 
@@ -368,8 +402,12 @@ class Orchestrator:
                  f"YOUR SUBTASK: {sub.title}\n{sub.description}\n"]
         if sub.target_files:
             parts.append("Only modify these paths (other agents work on other paths at the same time): " + ", ".join(sub.target_files))
-        if atts:
-            parts.append("Attached files (absolute paths): " + ", ".join(a.path for a in atts))
+        for name, text in _attachment_texts(atts):
+            if text:
+                parts.append(f"Attached file '{name}' (content to follow and honour exactly — it is the design/spec for this work):\n"
+                             f"--- BEGIN {name} ---\n{text}\n--- END {name} ---")
+            else:
+                parts.append(f"Attached file (not readable as text, ask before assuming its contents): {name}")
         for h in hands:
             parts.append("Handoff from a completed dependency:\n" + json.dumps({
                 "summary": h.summary, "decisions": h.decisions, "constraints": h.constraints,
@@ -415,7 +453,12 @@ class Orchestrator:
                 # (default 4, one per provider) bounds cost: if every real executor is down the
                 # final failure is reported as-is.
                 if not outcome.simulated and not rs.redirected and sub.attempts < self.ctx.settings.max_subtask_attempts:
-                    if _looks_like_auth_failure(msg):
+                    if outcome.error_kind == "auth" or _looks_like_auth_failure(msg):
+                        self.provider_auth_failed(agent.provider)
+                    elif outcome.error_kind == "permission":
+                        # Signed-in but the headless policy denies tool calls: re-running on the
+                        # same provider is hopeless until the CLI's permission mode is fixed.
+                        # Bench like an auth failure so the router moves on immediately.
                         self.provider_auth_failed(agent.provider)
                     else:
                         self.provider_failed(agent.provider)

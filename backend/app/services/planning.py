@@ -128,8 +128,8 @@ _RULES: list[tuple[str, tuple[str, ...], str, list[str]]] = [
     ("refactor", ("refactor", "clean up", "cleanup", "rename", "restructure"), "Refactor existing code", ["src/**"]),
     ("debugging", ("bug", "fix", "crash", "error", "broken"), "Diagnose and fix the defect", ["src/**"]),
     ("security", ("security", "vulnerab", "sanitiz", "xss", "csrf", "harden"), "Security review and hardening", ["backend/**"]),
-    ("frontend", ("ui", "page", "component", "frontend", "react", "next.js", "css", "layout", "dashboard", "form", "button"), "Build the user interface", ["frontend/**"]),
-    ("devops", ("docker", "deploy", "ci/cd", "pipeline", "kubernetes"), "Containerise and configure deployment", ["Dockerfile", "docker-compose.yml", ".github/**"]),
+    ("frontend", ("ui", "ux", "page", "component", "frontend", "react", "next.js", "css", "layout", "dashboard", "form", "button", "website", "web site", "web page", "landing", "homepage", "site", "gallery", "menu"), "Build the user interface (UI/UX)", ["frontend/**"]),
+    ("devops", ("docker", "deploy", "ci/cd", "pipeline", "kubernetes", "preview server", "dev server", "local server", "serve", "host it", "run it locally"), "Containerise and configure deployment", ["Dockerfile", "docker-compose.yml", ".github/**"]),
     ("testing", ("test", "pytest", "coverage", "qa"), "Write and run tests", ["tests/**"]),
     ("docs", ("readme", "docs", "documentation", "document "), "Write documentation", ["docs/**", "README.md"]),
 ]
@@ -162,6 +162,19 @@ def heuristic_plan(request: str) -> dict:
     for i, st in enumerate(subtasks):  # tests/docs run after the implementation work they describe
         if st["capabilities"][0] in ("testing", "docs", "devops"):
             st["depends_on"] = [j for j in range(i) if subtasks[j]["capabilities"][0] not in ("testing", "docs", "devops")]
+    # A web build is not demoable without something to open: when the plan renders UI/artifact
+    # files, Bob appends a dedicated preview-server subtask that depends on that work.
+    ui_idx = [i for i, st in enumerate(subtasks)
+              if st["capabilities"][0] == "frontend" or any(f.endswith((".html", ".htm")) for f in st["files"])]
+    if ui_idx and not any(st["capabilities"][0] == "devops" for st in subtasks):
+        subtasks.append({
+            "title": "Set up the preview server",
+            "description": "Create serve.py (python -m http.server wrapper binding 127.0.0.1 on a free port, serving this repo's "
+                           "built files) plus a short 'Preview' section in README.md with the exact command to run. Verify the "
+                           "server starts and responds 200 on / before finishing.",
+            "capabilities": ["devops"], "files": ["serve.py", "README.md"],
+            "depends_on": ui_idx,
+        })
     return {"rationale": "Heuristic decomposition by capability keywords (Bob Plan mode output was unavailable).",
             "subtasks": subtasks[:MAX_SUBTASKS]}
 
@@ -170,9 +183,20 @@ def _ext(p: str) -> str:
     return "." + p.rsplit(".", 1)[-1].lower() if "." in p.rsplit("/", 1)[-1] else ""
 
 
-def build_plan_prompt(request: str, attachments: list[str], agents: list[dict]) -> str:
+def build_plan_prompt(request: str, attachments: list[str], agents: list[dict],
+                      attachment_texts: list[tuple[str, str]] | None = None) -> str:
     agent_lines = "\n".join(f"- {a['provider']}: strengths " + ", ".join(
         k for k, v in sorted(a["capabilities"].items(), key=lambda kv: -kv[1])[:4]) for a in agents)
+    att_sections = ""
+    if attachment_texts:
+        for name, text in attachment_texts:
+            if text:
+                att_sections += (f"\nAttached file '{name}' (the design/spec to decompose against — honour it exactly):\n"
+                                 f"--- BEGIN {name} ---\n{text}\n--- END {name} ---\n")
+            else:
+                att_sections += f"\nAttached file (not readable as text): {name}\n"
+    elif attachments:
+        att_sections = f"\nAttached files: {', '.join(attachments)}\n"
     return (
         "You are Bob in Plan mode, the conductor of a multi-agent development workspace. Decompose the request "
         f"into 1-{MAX_SUBTASKS} subtasks that independent coding agents can execute. Subtasks that edit the same "
@@ -182,7 +206,7 @@ def build_plan_prompt(request: str, attachments: list[str], agents: list[dict]) 
         '"files": [str], "depends_on": [int]}]}\n'
         f"capabilities must come from: {', '.join(CAPABILITIES)}. depends_on lists indices of EARLIER subtasks.\n"
         f"Connected agents:\n{agent_lines}\n"
-        + (f"Attached files: {', '.join(attachments)}\n" if attachments else "")
+        + att_sections
         + f"{PLAN_START}\n{request}\n{PLAN_END}")
 
 

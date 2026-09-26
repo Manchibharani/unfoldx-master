@@ -110,19 +110,64 @@ class EntitlementService:
         ledger = await self._budget.state(ws_id, provider) or {"requests": 0}
         ent = await self._adapters[provider].entitlement(conn, ledger)
         ent["cli_version"] = await self._version(provider) if ent["cli_available"] else None
+        # "Connected" used to mean only "the CLI binary exists on PATH", which let a signed-out
+        # or unkeyed provider sit in the routing pool and burn every subtask's first attempt.
+        # Resolve the real credential state: encrypted key in the workspace DB, a usable value
+        # in the environment (.env / shell), or a host CLI login that a probe confirms.
+        cred = self.credential_env(conn, self._adapters[provider]) if conn else ({}, False)
+        env_key_present = any(v for v in cred[0].values())
+        host_login = False
+        if conn and conn.auth_type == "host_session" and ent["cli_available"]:
+            host_login = await self._adapters[provider].check_auth()
+        if conn is None:
+            auth_state = "disconnected"
+        elif cred[0]:
+            auth_state = "api_key"
+        elif conn.auth_type == "host_session":
+            auth_state = "host_session" if host_login else "signed_out"
+        else:
+            auth_state = "no_credentials"
         ent.update(connected=conn is not None, auth_type=conn.auth_type if conn else None,
+                   auth_state=auth_state,
+                   authenticated=auth_state in ("api_key", "host_session"),
                    credential_stored=bool(conn and conn.secret_ciphertext),  # never the secret itself
+                   env_key_present=env_key_present,
+                   credential_hint=self._credential_hint(provider, auth_state),
                    budget=ledger if conn else None)
         return ent
+
+    def _credential_hint(self, provider: str, auth_state: str) -> str | None:
+        adapter = self._adapters[provider]
+        env_name = adapter.api_key_env
+        return {
+            "disconnected": f"Connect {adapter.display_name} (POST /providers with api_key, or this panel).",
+            "signed_out": f"{adapter.display_name} CLI is installed but not signed in: run '{adapter.executable()} /login' on the host, or store an API key here.",
+            "no_credentials": f"No credentials: store an API key (env var name: {env_name}) or sign in on the host.",
+        }.get(auth_state)
 
     async def status(self, ws_id: str) -> list[dict]:
         return [await self.provider_status(ws_id, c.provider) for c in await self.list_conns(ws_id)]
 
     def credential_env(self, conn: ProviderConnection, adapter: CliAdapter) -> tuple[dict[str, str], bool]:
-        """(env for the child process, keep host HOME so a host CLI login is usable)."""
+        """(env for the child process, keep host HOME so a host CLI login is usable).
+
+        Resolution order: the workspace-stored encrypted key, then a usable value of the
+        provider's env var in the backend process environment (shell or backend/.env —
+        config._finalize imports those values). A host-session connection keeps HOME so the
+        host CLI login applies."""
         if conn.auth_type == "api_key" and conn.secret_ciphertext:
             return {adapter.api_key_env: self._vault.decrypt(conn.secret_ciphertext)}, False
+        # Fall back to the backend process env (shell export or .env value). This is what
+        # makes "I put BOBSHELL_API_KEY=... in .env" actually work.
+        import os
+        val = os.environ.get(adapter.api_key_env)
+        if val:
+            return {adapter.api_key_env: val}, False
         return {}, conn.auth_type == "host_session"
+
+    async def _probe_auth(self, provider: str) -> bool:
+        # kept for compatibility with older callers/tests
+        return await self._adapters[provider].check_auth()
 
     # ---- polling -----------------------------------------------------------------------------------
     def start_polling(self) -> None:

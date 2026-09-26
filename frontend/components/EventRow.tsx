@@ -36,6 +36,16 @@ export function EventRow({ event, isLast }: { event: WorkspaceEvent; isLast: boo
           {typeof event.cost_delta === "number" && (
             <span className="tabular-nums text-state-running">+${event.cost_delta.toFixed(3)}</span>
           )}
+          {typeof event.tokens_delta === "number" && event.tokens_delta > 0 && (
+            <span className="tabular-nums text-muted" title="tokens used by this step">
+              +{event.tokens_delta.toLocaleString()} tok
+            </span>
+          )}
+          {typeof event.payload?.tokens_in === "number" && (
+            <span className="tabular-nums text-muted/80" title="provider-reported tokens: input + output">
+              {((event.payload.tokens_in as number) + ((event.payload.tokens_out as number) || 0)).toLocaleString()} tok
+            </span>
+          )}
           <span className="ml-auto font-mono text-state-inactive" title={`hash ${event.hash}`}>
             {event.hash.slice(0, 8)}
           </span>

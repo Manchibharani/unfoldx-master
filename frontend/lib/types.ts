@@ -8,6 +8,7 @@
 export type Provider =
   | "bob"
   | "claude_code"
+  | "opencode"
   | "codex"
   | "github_copilot" // Frontend placeholder; not part of the backend schema yet.
   | "gemini"

@@ -38,6 +38,9 @@ def _previewable_file(files):
                 return name
     nested_html = [f["path"] for f in files if is_html(f["path"])]
     if nested_html:
+        # Bundled SPA builds (dist/index.html with hashed /assets/*) render blank in an iframe:
+        # they need their asset tree served from the same origin, which the files/content
+        # endpoint does provide. Prefer the SHALLOWEST html (closest to a standalone artifact).
         return min(nested_html, key=lambda p: (p.count("/"), p))
     for f in files:
         if f["text"]:

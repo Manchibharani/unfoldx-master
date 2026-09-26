@@ -15,8 +15,20 @@ export function useWorkspaceSocket(workspaceId: string, token: string | null = n
   const socketRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
   const cleanupMockRef = useRef<(() => void) | null>(null);
+  // seq numbers the client has already applied. Reconnects replay the tail of the log, so
+  // without this the feed double-counts token/cost deltas and duplicates rows.
+  const seenSeqsRef = useRef<Set<string> | null>(null);
+  if (seenSeqsRef.current === null) seenSeqsRef.current = new Set<string>();
 
   const handleEvent = useCallback((event: WorkspaceEvent) => {
+    const dedupKey = `${event.workspace_id}:${event.seq}`;
+    if (seenSeqsRef.current.has(dedupKey)) return;
+    seenSeqsRef.current.add(dedupKey);
+    if (seenSeqsRef.current.size > 5000) {
+      // bounded: drop the oldest quarter once the set grows large
+      const keep = [...seenSeqsRef.current].slice(-3750);
+      seenSeqsRef.current = new Set(keep);
+    }
     setEvents((prev) => {
       const next = [...prev, event];
       return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;

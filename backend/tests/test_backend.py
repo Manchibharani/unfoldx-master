@@ -24,12 +24,12 @@ def test_demo_workspace_seeded_and_chain_valid(make_client):
     with make_client() as c:
         assert c.get("/healthz").json()["status"] == "ok"
         provs = c.get("/api/workspaces/demo-workspace/providers").json()
-        assert {p["provider"] for p in provs} == {"bob", "claude_code", "codex", "github_copilot", "gemini"}
+        assert {p["provider"] for p in provs} == {"bob", "claude_code", "opencode", "codex", "github_copilot", "gemini"}
         modes = {p["provider"]: p["mode"] for p in provs}
         assert modes["gemini"] == "real"      # fake Antigravity CLI is "installed" in tests
         assert set(v for k, v in modes.items() if k != "gemini") == {"simulated"}
         evts = events(c)
-        assert len(by_type(evts, "provider_connected")) == 5
+        assert len(by_type(evts, "provider_connected")) == 6
         for e in evts:
             WorkspaceEvent.model_validate(e)  # contract check on every emitted event
         v = c.get("/api/workspaces/demo-workspace/events/verify").json()
@@ -108,7 +108,7 @@ def test_conflict_detected_and_serialised(make_client):
 def test_circuit_breaker_pause_and_override(make_client):
     with make_client(sim_delay_seconds=0.01) as c:
         base = "/api/workspaces/demo-workspace"
-        for p in ("claude_code", "codex", "github_copilot", "gemini"):  # leave only Bob to spend, with a tiny cap
+        for p in ("claude_code", "opencode", "codex", "github_copilot", "gemini"):  # leave only Bob to spend, with a tiny cap
             for a in c.get(f"{base}/agents").json():
                 if a["provider"] == p:
                     c.patch(f"{base}/agents/{a['id']}", json={"enabled": False})
