@@ -19,7 +19,7 @@ class _Job:
     queue: asyncio.Queue
 
 
-class LocalCodexBroker:
+class LocalAgentBridge:
     def __init__(self, token: str | None):
         self.token = token or ""
         self._pending: asyncio.Queue[_Job] = asyncio.Queue()
@@ -36,7 +36,7 @@ class LocalCodexBroker:
 
     async def enqueue(self, *, session_id: str, workspace_id: str, prompt: str, mode: str) -> asyncio.Queue:
         if not self.enabled:
-            raise RuntimeError("local Codex worker is not configured")
+            raise RuntimeError("agent bridge is not configured")
         q: asyncio.Queue = asyncio.Queue(maxsize=1000)
         job = _Job(session_id, workspace_id, prompt, mode, q)
         self._jobs[session_id] = job
@@ -75,5 +75,5 @@ class LocalCodexBroker:
             self._worker_count = max(0, self._worker_count - 1)
             # Fail any queued job whose worker disappeared so the backend does not hang forever.
             for job in list(self._jobs.values()):
-                await job.queue.put({"type": "error", "message": "local Codex worker disconnected"})
+                await job.queue.put({"type": "error", "message": "agent bridge disconnected"})
                 self.finish(job.session_id)
