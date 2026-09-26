@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     entitlement_poll_seconds: float = 60
     max_upload_bytes: int = 10 * 1024 * 1024
     # Optional outbound local worker for ChatGPT-authenticated Codex CLI.
-    local_worker_token: str | None = None
+    agent_bridge_token: str | None = None
 
     # Simulation: when a provider CLI is not installed, run a clearly-labelled simulated agent so
     # the full pipeline stays demoable. Set ALLOW_SIMULATION=0 in production.
