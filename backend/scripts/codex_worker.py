@@ -10,8 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import subprocess
-import sys
+import shutil
 from pathlib import Path
 
 import websockets
@@ -20,7 +19,26 @@ import websockets
 BACKEND_WS = os.environ.get("UNFOLDX_BACKEND_WS", "").rstrip("/")
 TOKEN = os.environ.get("UNFOLDX_AGENT_BRIDGE_TOKEN", "")
 REPO_ROOT = Path(os.environ.get("UNFOLDX_LOCAL_REPO", Path.cwd())).resolve()
-CODEX = os.environ.get("UNFOLDX_CODEX_BIN", "codex")
+def resolve_codex_command() -> str:
+    """Resolve Codex on Windows too, where npm commonly installs a .cmd shim.
+
+    create_subprocess_exec("codex", ...) can raise WinError 2 even though the
+    terminal resolves PATHEXT shims. Pin the discovered launcher path before spawning it.
+    """
+    configured = os.environ.get("UNFOLDX_CODEX_BIN")
+    if configured:
+        return configured
+    for candidate in ("codex", "codex.cmd", "codex.exe"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+    raise FileNotFoundError(
+        "Codex CLI was not found on PATH. Run 'where codex' in PowerShell, "
+        "or set UNFOLDX_CODEX_BIN to the full path of codex/codex.cmd."
+    )
+
+
+CODEX = resolve_codex_command()
 
 
 async def run_job(ws, job: dict) -> None:
@@ -60,6 +78,7 @@ async def main() -> None:
     uri = f"{BACKEND_WS}/ws/agent-bridge?token={TOKEN}"
     print(f"UNFOLD X Codex worker → {BACKEND_WS}")
     print(f"Local repo: {REPO_ROOT}")
+    print(f"Codex executable: {CODEX}")
     async with websockets.connect(uri, ping_interval=20, ping_timeout=20, max_size=16 * 1024 * 1024) as ws:
         print("Connected. Waiting for Codex jobs…")
         async for raw in ws:
