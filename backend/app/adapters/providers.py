@@ -22,6 +22,11 @@ class OpenCodeAdapter(CliAdapter):
     def parse_json_event(self, obj: dict, state: dict) -> list[AgentEvent]:
         return opencode_event(obj, state)
 
+    async def check_auth(self) -> bool:
+        # opencode stores its login in host config (`opencode auth login`); a tiny real prompt
+        # proves the account is signed in and funded, so routing/entitlement treat it as live.
+        return await _run_auth_probe([self.executable(), "run", _PROBE])
+
 
 class CodexAdapter(CliAdapter):
     """Best-effort: Codex headless mode is reported unstable for sustained non-TTY orchestration."""

@@ -1,5 +1,7 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,27 +23,29 @@ _PREVIEW_PREFERRED_NAMES = ("index.html",)
 
 
 def _previewable_file(files):
-    """Pick the file to show in the auto-preview. Root-level artifacts (what agents build
-    as the demoable page) win over files inside scaffolded app dirs, whose index.html
-    usually needs a bundler and renders blank in an iframe."""
+    """Pick the file to show in the auto-preview. The NEWEST html wins (agents iterate:
+    the latest build is the current state of the app), with root-level standalone
+    artifacts preferred over equally-fresh bundled ones."""
     def is_html(path):
         return path.rsplit("/", 1)[-1].rsplit(".", 1)[-1].lower() in ("html", "htm")
-    root_html = [f["path"] for f in files if "/" not in f["path"] and is_html(f["path"])]
-    for name in _PREVIEW_PREFERRED_NAMES:
-        if name in root_html:
-            return name
-    if root_html:
-        return root_html[0]
-    for name in _PREVIEW_PREFERRED_NAMES:  # nested index.html as a fallback
-        for f in files:
-            if f["path"] == name:
-                return name
-    nested_html = [f["path"] for f in files if is_html(f["path"])]
-    if nested_html:
-        # Bundled SPA builds (dist/index.html with hashed /assets/*) render blank in an iframe:
-        # they need their asset tree served from the same origin, which the files/content
-        # endpoint does provide. Prefer the SHALLOWEST html (closest to a standalone artifact).
-        return min(nested_html, key=lambda p: (p.count("/"), p))
+    html_files = [f for f in files if is_html(f["path"])]
+    if html_files:
+        newest = max(int(f.get("mtime_ns", 0)) for f in html_files)
+        window = 2_000_000_000 if newest > 2_000_000_000 else 0  # 2s real-clock grouping
+        freshest = [f for f in html_files if int(f.get("mtime_ns", 0)) >= newest - window]
+        root = [f for f in freshest if "/" not in f["path"]]
+        for name in _PREVIEW_PREFERRED_NAMES:
+            hit = next((f for f in (root or freshest) if f["path"] == name or f["path"].endswith("/" + name)), None)
+            if hit:
+                # Bundled SPA (dist/index.html) beats the unbundled source page: the dist
+                # build is what actually renders as a website.
+                if hit["path"].count("/") > 0:
+                    bundled = [f for f in freshest if f["path"] != hit["path"] and "/dist/" in f["path"]]
+                    if bundled:
+                        return min(bundled, key=lambda f: (f["path"].count("/"), f["path"]))["path"]
+                return hit["path"]
+        pool = root or freshest
+        return min(pool, key=lambda f: (f["path"].count("/"), f["path"]))["path"]
     for f in files:
         if f["text"]:
             return f["path"]
@@ -64,9 +68,13 @@ async def _files_payload(ctx: AppContext, workspace_id: str):
         return []
     out = []
     for p in sorted(root.rglob("*")):
-        if p.is_file() and "node_modules" not in p.parts and ".git" not in p.parts:
+        if p.is_file() and "node_modules" not in p.parts and ".git" not in p.parts and "__pycache__" not in p.parts:
+            try:
+                mtime_ns = p.stat().st_mtime_ns
+            except OSError:
+                continue
             out.append({"path": p.relative_to(root).as_posix(), "size": p.stat().st_size,
-                        "text": p.suffix.lower() in _TEXT_SUFFIXES})
+                        "text": p.suffix.lower() in _TEXT_SUFFIXES, "mtime_ns": mtime_ns})
     return out
 
 
@@ -81,12 +89,34 @@ async def read_file(workspace_id: str, path: str, request: Request, ctx: AppCont
                     session: AsyncSession = Depends(get_session), user: User | None = Depends(current_user_optional)):
     """File bytes for the Preview iframe. Always allowed in open mode (auth_mode=open): the
     browser cannot attach a bearer token to an iframe src, so this route MUST be guest-accessible
-    for the preview to load. JWT mode keeps the normal role check."""
+    for the preview to load. JWT mode keeps the normal role check.
+
+    For a bundled SPA (dist/index.html), root-absolute asset/script paths are rewritten to this
+    endpoint (base = the file's directory), so /assets/x.js and /images/x.png load from the same
+    origin and the built site renders inside the iframe."""
     if ctx.settings.auth_mode != "open":
         await authorize(ctx, session, workspace_id, user, "view", "read workspace file")
     p = _safe_repo_path(ctx, workspace_id, path)
     if p is None or not p.is_file():
         raise HTTPException(404, "file not found")
+    if p.suffix.lower() in (".html", ".htm"):
+        try:
+            html = p.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            html = ""
+        if html and re.search(r"(?:src|href)=[\"']/", html):
+            base = path.rsplit("/", 1)[0] if "/" in path else ""
+            endpoint = f"/api/workspaces/{workspace_id}/files/content"
+
+            def _rebase(m: "re.Match[str]") -> str:
+                attr, quote, val = m.group(1), m.group(2), m.group(3)
+                if val.startswith("//") or val.startswith("http:") or val.startswith("https:") or val.startswith("#"):
+                    return m.group(0)  # external/anchor: leave alone
+                joined = f"{base}/{val.lstrip('/')}" if base else val.lstrip("/")
+                return f'{attr}={quote}{endpoint}?path={joined}{quote}'
+
+            html = re.sub(r"(src|href)=(['\"])(/[^'\"]*)\2", _rebase, html)
+            return HTMLResponse(html)
     return FileResponse(p)
 
 

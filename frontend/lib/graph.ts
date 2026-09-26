@@ -459,6 +459,10 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
           if (typeof p.spent_usd === "number") a.spentUsd = p.spent_usd;
           if (typeof p.cap_usd === "number") a.capUsd = p.cap_usd;
           if (absTokens > 0) a.tokensUsed = absTokens;
+          // A budget_update reporting the breaker closed (cap override) clears a
+          // replayed trip — otherwise an old circuit_breaker_triggered event from a
+          // previous session leaves the agent permanently "budget stopped".
+          if (p.breaker === "closed") a.breakerTripped = false;
         }
         break;
       }

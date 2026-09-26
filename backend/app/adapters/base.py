@@ -77,11 +77,25 @@ _HOST_SESSION_ENV = ("HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIV
 _AUTH_PROBE_SENTINEL = "UAW_AUTH_PROBE_OK"
 
 
+def _resolve_probe_argv(argv: list[str]) -> list[str]:
+    """Resolve a bare executable name into a spawnable argv.
+
+    Windows CreateProcess only appends '.exe' when given a bare name, so npm shims like
+    opencode.cmd / codex.cmd are invisible to Popen (WinError 2) even though shutil.which
+    finds them — the same rewrite start() does for real runs must apply to probes too."""
+    resolved = shutil.which(argv[0])
+    if resolved:
+        argv = [resolved, *argv[1:]]
+    if os.name == "nt" and argv[0].lower().endswith((".cmd", ".bat")):
+        return [os.environ.get("COMSPEC") or "cmd.exe", "/d", "/s", "/c", *argv]
+    return argv
+
+
 async def _run_auth_probe(argv: list[str], timeout: float = 20.0) -> bool:
     """Run a tiny non-interactive prompt and return True when the CLI produced a real model
     response (i.e. it is signed in and funded). Shared by every host-session adapter."""
     if _use_threaded_subprocess():
-        proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        proc = subprocess.Popen(_resolve_probe_argv(argv), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                 stdin=subprocess.DEVNULL, env=sandbox_env({}, None, True))
         try:
             out, _ = await asyncio.to_thread(proc.communicate, timeout)
@@ -91,7 +105,7 @@ async def _run_auth_probe(argv: list[str], timeout: float = 20.0) -> bool:
     else:
         try:
             proc = await asyncio.create_subprocess_exec(
-                *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                *_resolve_probe_argv(argv), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
                 stdin=asyncio.subprocess.DEVNULL, env=sandbox_env({}, None, True))
         except (OSError, FileNotFoundError):
             return False
@@ -245,12 +259,12 @@ class CliAdapter:
         try:
             if _use_threaded_subprocess():
                 proc = subprocess.Popen(
-                    [self.executable(), "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    _resolve_probe_argv([self.executable(), "--version"]), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     env=sandbox_env({}, None, True))
                 out, _ = await asyncio.to_thread(proc.communicate, timeout=10)
             else:
                 proc = await asyncio.create_subprocess_exec(
-                    self.executable(), "--version", stdout=asyncio.subprocess.PIPE,
+                    *_resolve_probe_argv([self.executable(), "--version"]), stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT)
                 out, _ = await asyncio.wait_for(proc.communicate(), 10)
             return out.decode(errors="replace").strip().splitlines()[0][:120] if out else None
