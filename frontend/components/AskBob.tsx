@@ -8,6 +8,7 @@ import type { ControlAction } from "@/lib/useOrchestration";
 import type { Permissions } from "@/lib/permissions";
 import { readFiles } from "@/lib/attachments";
 import { FileChips } from "./FileChips";
+import { ProviderLogo } from "./ProviderLogo";
 
 function ClipIcon() {
   return (
@@ -71,12 +72,12 @@ export function AskBob({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-card">
+    <section className="overflow-hidden rounded-xl bg-ink-900">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 border-b border-ink-700 px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-accent-indigo/30 to-accent-blue/30">
-            <span className="h-2 w-2 rounded-full bg-state-orchestration" />
+            <ProviderLogo provider="bob" size={24} />
           </div>
           <h2 className="text-sm font-semibold text-parchment">Ask Bob</h2>
         </div>
@@ -106,7 +107,7 @@ export function AskBob({
             disabled={!permissions.canControl}
             rows={2}
             placeholder={permissions.canControl ? "Describe the work for Bob to break down and route" : "Submitting tasks requires the control role"}
-            className="min-h-[56px] w-full resize-y rounded-xl border border-ink-700 bg-ink-800 px-3 py-2.5 text-sm text-parchment outline-none placeholder:text-muted focus:border-accent-blue/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-[56px] w-full resize-y rounded-lg border border-white/[0.06] bg-ink-800 px-3 py-2.5 text-sm text-parchment outline-none placeholder:text-muted focus:border-accent-indigo/50 disabled:cursor-not-allowed disabled:opacity-50"
           />
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-muted/70">
@@ -115,7 +116,7 @@ export function AskBob({
                 : "Routing and cost preview appear as you compose."}
             </p>
             <label
-              className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-ink-700 bg-ink-800 text-muted transition-colors hover:border-ink-600 hover:text-parchment ${permissions.canControl ? "" : "pointer-events-none opacity-40"}`}
+              className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-ink-800 text-muted transition-colors hover:text-parchment ${permissions.canControl ? "" : "pointer-events-none opacity-40"}`}
               title={permissions.canControl ? "Attach files" : "Attaching files requires the control role"}
             >
               <ClipIcon />
@@ -131,7 +132,7 @@ export function AskBob({
             <button
               type="submit"
               disabled={(!value.trim() && files.length === 0) || !permissions.canControl}
-              className="h-8 shrink-0 rounded-lg bg-gradient-to-r from-accent-indigo to-accent-blue px-4 text-xs font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+              className="h-8 shrink-0 rounded-lg bg-accent-indigo px-4 text-xs font-semibold text-white transition-colors hover:bg-accent-indigo/90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Ask Bob
             </button>

@@ -56,24 +56,24 @@ export function BudgetStrip({
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-ink-700 px-3 py-4 text-center text-xs text-muted/60">
+      <div className="px-3 py-4 text-center text-xs text-muted/60">
         Waiting for budget data — nothing spent yet.
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-2">
+    <div className="divide-y divide-ink-700">
       {entries.map((e) => {
         const pct = e.capUsd > 0 ? Math.min(100, (e.spentUsd / e.capUsd) * 100) : 0;
         const barColor = e.breakerTripped ? "#EA7568" : pct > 80 ? "#D9A441" : "#3ECFB2";
         return (
-          <div key={e.provider} className="rounded-xl border border-ink-700 bg-ink-800/50 px-3 py-2.5">
+          <div key={e.provider} className="px-2.5 py-3">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <div className="flex min-w-0 items-center gap-2">
                 <ProviderBadge provider={e.provider} logoOnly size={22} />
                 {e.agentCount > 1 && (
-                  <span className="whitespace-nowrap rounded-full bg-ink-700 px-2 py-0.5 text-[9px] text-muted">
+                  <span className="whitespace-nowrap px-1 text-[9px] text-muted">
                     ×{e.agentCount}
                   </span>
                 )}
@@ -89,7 +89,7 @@ export function BudgetStrip({
               </p>
             )}
 
-            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-ink-700">
+            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{ width: `${pct}%`, backgroundColor: barColor }}
@@ -102,7 +102,7 @@ export function BudgetStrip({
             </div>
 
             {e.breakerTripped && (
-              <p className="mt-1.5 rounded-lg border border-state-conflict/30 bg-state-conflict/10 px-2 py-1 text-[10px] text-state-conflict">
+              <p className="mt-1.5 bg-state-conflict/[0.08] px-2 py-1 text-[10px] text-state-conflict">
                 circuit breaker tripped — dispatch paused
               </p>
             )}

@@ -58,7 +58,7 @@ All variables are read at build/runtime via `NEXT_PUBLIC_*`.
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | REST base URL for control actions (submit task, stop/redirect, budget override, add agent, attach files) and auth. Unset ⇒ those actions stay local-only with a "not yet connected to backend" note. |
 | `NEXT_PUBLIC_WORKSPACE_ID` | `demo-workspace` | Workspace to open on load. |
 | `NEXT_PUBLIC_MOCK` | `1` | `1` = built-in mock event generator; `0` = real backend. |
-| `NEXT_PUBLIC_PREVIEW_URL` | `http://localhost:3000` | Default URL for the live preview window. |
+| `NEXT_PUBLIC_PREVIEW_URL` | *(empty)* | Optional URL of a separately-running app to show in the live preview. |
 | `NEXT_PUBLIC_BASE_PATH` | *(empty)* | Base path for the static export (e.g. `/unfoldx_frontend` on GitHub Pages). |
 
 ## Sessions & Roles

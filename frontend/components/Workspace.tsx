@@ -20,7 +20,7 @@ import { Inspector } from "./Inspector";
 const HubCanvas = dynamic(() => import("./canvas/HubCanvas").then((m) => m.HubCanvas), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[560px] w-full items-center justify-center rounded-xl border border-ink-700 bg-ink-950 text-sm text-muted">
+    <div className="flex h-full min-h-[560px] w-full items-center justify-center rounded-xl bg-ink-900 text-sm text-muted">
       Loading canvas…
     </div>
   ),
@@ -122,7 +122,7 @@ export function Workspace() {
             onSelect={setSelection}
             onAction={send}
           />
-          <section className="mt-3 overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-card">
+          <section className="mt-3 overflow-hidden rounded-xl bg-ink-900">
             <div className="border-b border-ink-700 px-4 py-3">
               <h2 className="text-[11px] font-semibold uppercase tracking-widest text-state-info">Budget ledger</h2>
             </div>
@@ -134,7 +134,7 @@ export function Workspace() {
 
         {/* Center column — Canvas + Ask Bob */}
         <section className="flex min-w-0 flex-col gap-3">
-          <div className="relative h-[62vh] min-h-[520px] overflow-hidden rounded-xl border border-ink-700 bg-ink-950 shadow-[0_4px_32px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)]">
+          <div className="relative h-[62vh] min-h-[520px] overflow-hidden rounded-xl border border-white/[0.05] bg-ink-950 shadow-[0_12px_36px_-28px_rgba(0,0,0,0.8)]">
             <HubCanvas
               model={hub}
               permissions={auth.permissions}
@@ -154,7 +154,7 @@ export function Workspace() {
       </div>
 
       {/* ── Event log (collapsible) ─────────────────────────── */}
-      <details className="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
+      <details className="overflow-hidden rounded-xl bg-ink-900">
         <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-3 text-xs font-medium text-muted transition-colors hover:text-parchment">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden className="shrink-0 text-muted">
             <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

@@ -18,7 +18,7 @@ export function EventFeed({ events }: { events: WorkspaceEvent[] }) {
 
   if (events.length === 0) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-ink-700 text-sm text-muted">
+      <div className="flex h-40 items-center justify-center text-sm text-muted">
         Waiting for the first event — submit a task to start the chain.
       </div>
     );
@@ -27,7 +27,7 @@ export function EventFeed({ events }: { events: WorkspaceEvent[] }) {
   return (
     <div
       ref={scrollRef}
-      className="max-h-[60vh] overflow-y-auto rounded-md border border-ink-700 bg-ink-900 p-4"
+      className="max-h-[60vh] overflow-y-auto bg-transparent p-2"
       onScroll={(e) => {
         const el = e.currentTarget;
         wasAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;

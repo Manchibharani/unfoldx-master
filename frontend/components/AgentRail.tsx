@@ -69,11 +69,11 @@ export function AgentRail({
   }, [latched]);
 
   return (
-    <aside className="min-w-0 overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-card">
+    <aside className="min-w-0 overflow-hidden rounded-xl bg-ink-900">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-ink-700 px-4 py-3">
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-state-info">Agents</h2>
-        <span className="rounded-full bg-ink-700 px-2 py-0.5 text-[10px] tabular-nums text-muted">{agents.length}</span>
+        <span className="px-1.5 text-[10px] tabular-nums text-muted">{agents.length}</span>
       </div>
 
       {/* Agent list */}
@@ -88,10 +88,10 @@ export function AgentRail({
                 type="button"
                 aria-pressed={isSelected}
                 onClick={() => onSelect({ kind: "agent", id: agent.id })}
-                className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-all duration-150 ${
+                className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition-all duration-150 ${
                   isSelected
-                    ? "border-accent-blue/40 bg-ink-800 shadow-[0_0_0_1px_rgba(59,142,232,0.2)]"
-                    : "border-ink-700 bg-ink-800/50 hover:border-ink-600 hover:bg-ink-800"
+                    ? "bg-ink-800 shadow-[inset_2px_0_0_#8175E8]"
+                    : "bg-transparent hover:bg-white/[0.035]"
                 }`}
               >
                 {/* Provider logo */}
@@ -114,7 +114,7 @@ export function AgentRail({
                 </span>
 
                 {/* Event count badge */}
-                <span className="shrink-0 rounded-full bg-ink-700 px-1.5 py-0.5 text-[10px] tabular-nums text-muted">
+                <span className="shrink-0 px-1 text-[10px] tabular-nums text-muted/70">
                   {agent.eventCount}
                 </span>
               </button>
@@ -125,7 +125,7 @@ export function AgentRail({
                   title={`Remove ${agent.label}`}
                   aria-label={`Remove ${agent.label}`}
                   onClick={() => onAction({ kind: "remove_agent", agentId: agent.id })}
-                  className="flex items-center justify-center rounded-lg border border-transparent px-2 text-sm text-muted transition-colors hover:border-state-conflict/30 hover:bg-state-conflict/10 hover:text-state-conflict"
+                  className="flex items-center justify-center rounded-lg px-2 text-sm text-muted transition-colors hover:bg-state-conflict/10 hover:text-state-conflict"
                 >
                   ×
                 </button>
@@ -160,10 +160,10 @@ export function AgentRail({
                 ? "Stop the running demo task"
                 : "Submit the seeded judge scenario to the live backend"
           }
-          className={`w-full rounded-lg border px-3 py-2.5 text-left text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+          className={`w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
             running
-              ? "border-state-conflict/40 bg-state-conflict/10 text-state-conflict hover:bg-state-conflict/20"
-              : "border-accent-indigo/30 bg-gradient-to-r from-accent-indigo/10 to-accent-blue/10 text-state-orchestration"
+              ? "bg-state-conflict/10 text-state-conflict hover:bg-state-conflict/15"
+              : "bg-state-orchestration/10 text-state-orchestration hover:bg-state-orchestration/15"
           }`}
         >
           {starting ? "Starting…" : running ? "Stop Demo" : "Run Demo"}
@@ -180,7 +180,7 @@ export function AgentRail({
           onChange={(event) => setProvider(event.target.value as Provider)}
           disabled={!permissions.canControl}
           aria-label="Provider to add"
-          className="min-w-0 flex-1 rounded-lg border border-ink-600 bg-ink-800 px-2.5 py-2 text-[11px] text-parchment outline-none focus:border-accent-blue/50 disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-lg border border-white/[0.06] bg-ink-800 px-2.5 py-2 text-[11px] text-parchment outline-none focus:border-accent-indigo/50 disabled:opacity-50"
         >
           {ADDABLE_PROVIDERS.map((item) => <option key={item} value={item}>{PROVIDER_LABEL[item]}</option>)}
         </select>
@@ -188,7 +188,7 @@ export function AgentRail({
           type="button"
           disabled={!permissions.canControl}
           onClick={() => onAction({ kind: "add_agent", provider })}
-          className="rounded-lg border border-ink-600 px-3 py-2 text-sm font-medium text-muted transition-colors hover:border-accent-blue/40 hover:bg-accent-blue/10 hover:text-state-info disabled:opacity-40"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-accent-indigo/10 hover:text-state-orchestration disabled:opacity-40"
           title="Add agent"
         >
           +

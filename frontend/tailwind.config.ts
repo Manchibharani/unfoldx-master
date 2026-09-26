@@ -7,26 +7,26 @@ const config: Config = {
       colors: {
         ink: {
           950: "#080D18",
-          900: "#0D1525",
-          800: "#121E33",
-          700: "#1A2847",
-          600: "#243357",
+          900: "#0B0F1A",
+          800: "#101624",
+          700: "rgba(255,255,255,0.05)",
+          600: "rgba(255,255,255,0.07)",
         },
-        parchment: "#E8EDF5",
+        parchment: "#E8ECF5",
         state: {
-          orchestration: "#7C6EE8",
+          orchestration: "#8175E8",
           running: "#3ECFB2",
           warning: "#D9A441",
           conflict: "#EA7568",
-          inactive: "#8A96A8",
+          inactive: "#7E899F",
           // secondary accent for status/badges
-          info: "#3B8EE8",
+          info: "#9AA5B9",
         },
-        muted: "#8A96A8",
+        muted: "#7E899F",
         // gradient accent colors
         accent: {
-          blue: "#3B8EE8",
-          indigo: "#7C6EE8",
+          blue: "#7189B5",
+          indigo: "#8175E8",
           teal: "#3ECFB2",
         },
         // per-provider brand colors
@@ -46,9 +46,9 @@ const config: Config = {
         card: "10px",
       },
       boxShadow: {
-        card: "0 2px 12px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
-        "card-active": "0 0 0 1.5px #3B8EE8, 0 4px 24px -6px rgba(59,142,232,0.3)",
-        node: "0 4px 20px -8px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04)",
+        card: "0 12px 32px -24px rgba(0,0,0,0.72)",
+        "card-active": "0 0 0 1px rgba(129,117,232,0.45), 0 4px 24px -10px rgba(129,117,232,0.22)",
+        node: "0 10px 24px -16px rgba(0,0,0,0.8)",
       },
     },
   },

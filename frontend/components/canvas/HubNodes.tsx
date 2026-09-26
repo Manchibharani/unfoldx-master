@@ -131,13 +131,13 @@ function ProviderChip({ provider }: { provider: Provider }) {
 function Monitor({ activity }: { activity: AgentState["activity"] }) {
   if (activity.length === 0) {
     return (
-      <div className="mt-2.5 flex h-[72px] items-center justify-center rounded-lg border border-ink-700 bg-ink-950 text-[10px] text-muted">
+      <div className="mt-2.5 flex h-[72px] items-center justify-center rounded-lg bg-ink-800/60 text-[10px] text-muted">
         no activity yet
       </div>
     );
   }
   return (
-    <div className="mt-2.5 h-[72px] overflow-hidden rounded-lg border border-ink-700 bg-ink-950 px-2.5 py-1.5 text-[10px] leading-[16px]">
+    <div className="mt-2.5 h-[72px] overflow-hidden rounded-lg bg-ink-800/60 px-2.5 py-1.5 text-[10px] leading-[16px]">
       {activity.slice(-4).map((l) => (
         <div key={l.id} className={`truncate ${ACTIVITY_STYLE[l.kind]}`} title={l.text}>
           <span className="tabular-nums text-muted/60">{clock(l.at)} </span>
@@ -173,7 +173,7 @@ function PromptBox({
           onChange={(e) => setValue(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
-          className="min-w-0 flex-1 rounded-lg border border-ink-600 bg-ink-800 px-2.5 py-1.5 text-[11px] text-parchment outline-none placeholder:text-muted focus:border-accent-blue/50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-lg border border-white/[0.06] bg-ink-800 px-2.5 py-1.5 text-[11px] text-parchment outline-none placeholder:text-muted focus:border-accent-indigo/50 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="submit"
@@ -189,7 +189,7 @@ function PromptBox({
 
 function LockedNote({ role, text }: { role: Permissions["role"]; text: string }) {
   return (
-    <div className="nodrag mt-2.5 rounded-lg border border-ink-700 bg-ink-950 px-2.5 py-2 text-[10px] text-muted/60">
+    <div className="nodrag mt-2.5 px-2.5 py-2 text-[10px] text-muted/60">
       {text} <span className="text-muted">({role ?? "unknown"})</span>
     </div>
   );
@@ -198,22 +198,23 @@ function LockedNote({ role, text }: { role: Permissions["role"]; text: string })
 export interface AgentNodeData {
   agent: AgentState;
   onAction: (action: ControlAction) => void;
+  onRemoveNode: (nodeId: string) => void;
   permissions: Permissions;
   [key: string]: unknown;
 }
 
 export function AgentNode({ data }: NodeProps) {
-  const { agent, onAction, permissions } = data as unknown as AgentNodeData;
+  const { agent, onAction, onRemoveNode, permissions } = data as unknown as AgentNodeData;
   const accent = PROVIDER_ACCENT[agent.provider];
 
   return (
     <div
       className="w-72 rounded-xl bg-ink-900 px-3.5 py-3"
       style={{
-        border: `1px solid ${agent.active ? "#3ECFB2" : "#1A2847"}`,
+        border: `1px solid ${agent.active ? "rgba(62,207,178,0.38)" : "rgba(255,255,255,0.06)"}`,
         boxShadow: agent.active
-          ? `0 0 0 1px #3ECFB2, 0 0 28px -6px #3ECFB260`
-          : "0 6px 24px -10px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04)",
+          ? "0 8px 28px -14px rgba(62,207,178,0.42)"
+          : "0 10px 28px -18px rgba(0,0,0,0.86)",
       }}
     >
       <ConnectionPort type="target" position={Position.Left} accent={accent} />
@@ -230,16 +231,19 @@ export function AgentNode({ data }: NodeProps) {
         <div className="flex items-center gap-1">
           {!agent.builtIn && <Pill className="border-state-orchestration/40 bg-state-orchestration/10 text-state-orchestration">added</Pill>}
           <Pill className={AGENT_STATUS_STYLE[agent.status]}>{agent.status}</Pill>
-          {!agent.builtIn && (
-            <button
-              type="button"
-              onClick={() => onAction({ kind: "remove_agent", agentId: agent.id })}
-              className="nodrag ml-0.5 rounded-md px-1 py-0.5 text-xs text-muted hover:bg-state-conflict/10 hover:text-state-conflict"
-              title="Remove agent"
-            >
-              ×
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (agent.builtIn) onRemoveNode(agent.id);
+              else onAction({ kind: "remove_agent", agentId: agent.id });
+            }}
+            className="nodrag ml-0.5 rounded-md px-1 py-0.5 text-xs text-muted hover:bg-state-conflict/10 hover:text-state-conflict"
+            title={`Remove ${agent.label} from canvas`}
+            aria-label={`Remove ${agent.label} from canvas`}
+          >
+            ×
+          </button>
         </div>
       </div>
 
@@ -345,10 +349,10 @@ export function HubNode({ data }: NodeProps) {
     <div
       className="w-72 rounded-xl bg-ink-900 px-4 py-3"
       style={{
-        border: `1px solid ${agent.active ? "#3ECFB2" : "#243357"}`,
+        border: `1px solid ${agent.active ? "rgba(62,207,178,0.38)" : "rgba(255,255,255,0.06)"}`,
         boxShadow: agent.active
-          ? `0 0 0 1px #3ECFB2, 0 0 36px -8px #3ECFB260`
-          : "0 8px 28px -12px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.05)",
+          ? "0 8px 30px -14px rgba(62,207,178,0.42)"
+          : "0 12px 32px -18px rgba(0,0,0,0.9)",
       }}
     >
       <ConnectionPort type="target" position={Position.Left} accent={accent} />
@@ -370,11 +374,11 @@ export function HubNode({ data }: NodeProps) {
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-        <div className="rounded-lg border border-ink-700 bg-ink-800 px-2.5 py-2">
+        <div className="rounded-lg px-2.5 py-2">
           <div className="text-base font-semibold tabular-nums text-parchment">{subtaskCount}</div>
           <div className="text-[9px] text-muted">subtasks</div>
         </div>
-        <div className="rounded-lg border border-ink-700 bg-ink-800 px-2.5 py-2">
+        <div className="rounded-lg border-l border-ink-700 px-2.5 py-2">
           <div className="text-base font-semibold tabular-nums text-parchment">{agent.eventCount}</div>
           <div className="text-[9px] text-muted">events</div>
         </div>
@@ -394,12 +398,13 @@ export function HubNode({ data }: NodeProps) {
 export interface SubtaskNodeData {
   subtask: SubtaskState;
   onAction: (action: ControlAction) => void;
+  onRemoveNode: (nodeId: string) => void;
   permissions: Permissions;
   [key: string]: unknown;
 }
 
 export function SubtaskNode({ data }: NodeProps) {
-  const { subtask, onAction, permissions } = data as unknown as SubtaskNodeData;
+  const { subtask, onAction, onRemoveNode, permissions } = data as unknown as SubtaskNodeData;
   const editable =
     subtask.status === "submitted" || subtask.status === "queued" || subtask.status === "running";
 
@@ -407,10 +412,10 @@ export function SubtaskNode({ data }: NodeProps) {
     <div
       className="w-64 rounded-xl bg-ink-900 px-3 py-2.5"
       style={{
-        border: `1px solid ${subtask.conflict ? "#EA7568" : "#1A2847"}`,
+        border: `1px solid ${subtask.conflict ? "rgba(234,117,104,0.48)" : "rgba(255,255,255,0.06)"}`,
         boxShadow: subtask.conflict
-          ? "0 0 0 1px #EA756840, 0 4px 16px -6px rgba(234,117,104,0.3)"
-          : "0 4px 16px -8px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.03)",
+          ? "0 8px 24px -16px rgba(234,117,104,0.34)"
+          : "0 8px 22px -16px rgba(0,0,0,0.8)",
       }}
     >
       <ConnectionPort type="target" position={Position.Left} accent="#7C6EE8" />
@@ -418,7 +423,21 @@ export function SubtaskNode({ data }: NodeProps) {
 
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium leading-snug text-parchment">{subtask.label}</p>
-        <Pill className={SUBTASK_STATUS_STYLE[subtask.status]}>{subtask.status}</Pill>
+        <div className="flex shrink-0 items-center gap-1">
+          <Pill className={SUBTASK_STATUS_STYLE[subtask.status]}>{subtask.status}</Pill>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemoveNode(`subtask-${subtask.id}`);
+            }}
+            className="nodrag rounded-md px-1 py-0.5 text-xs text-muted hover:bg-state-conflict/10 hover:text-state-conflict"
+            title="Remove block from canvas"
+            aria-label={`Remove ${subtask.label} block from canvas`}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">

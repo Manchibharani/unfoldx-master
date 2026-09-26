@@ -43,7 +43,7 @@ function ContextSummary({
   if (agent) {
     const accent = PROVIDER_ACCENT[agent.provider];
     return (
-      <div className="mb-4 rounded-xl border border-ink-700 bg-ink-800/60 p-3">
+      <div className="mb-4 border-b border-ink-700 pb-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2.5">
             <ProviderLogo provider={agent.provider} size={22} />
@@ -63,11 +63,11 @@ function ContextSummary({
           </span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-ink-700 bg-ink-900 px-2.5 py-2 text-center">
+          <div className="rounded-lg px-2.5 py-2 text-center">
             <p className="text-sm font-semibold tabular-nums text-parchment">${agent.spentUsd.toFixed(3)}</p>
             <p className="text-[9px] text-muted">spent</p>
           </div>
-          <div className="rounded-lg border border-ink-700 bg-ink-900 px-2.5 py-2 text-center">
+          <div className="rounded-lg border-l border-ink-700 px-2.5 py-2 text-center">
             <p className="text-sm font-semibold tabular-nums text-parchment">{agent.tokensUsed.toLocaleString()}</p>
             <p className="text-[9px] text-muted">tokens</p>
           </div>
@@ -81,7 +81,7 @@ function ContextSummary({
 
   if (!subtask) {
     return (
-      <div className="mb-4 rounded-xl border border-ink-700 bg-ink-800/60 p-3">
+      <div className="mb-4 border-b border-ink-700 pb-3">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent-indigo/20 to-accent-blue/20">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -105,7 +105,7 @@ function ContextSummary({
   const handoffConstraints = handoff ? stringList(handoff.payload.constraints) : [];
 
   return (
-    <div className="mb-4 rounded-xl border border-ink-700 bg-ink-800/60 p-3">
+    <div className="mb-4 border-b border-ink-700 pb-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-parchment">{subtask.label}</h2>
@@ -123,14 +123,14 @@ function ContextSummary({
         </p>
       )}
       {subtask.conflict && (
-        <div className="mt-2.5 rounded-lg border border-state-conflict/40 bg-state-conflict/10 px-3 py-2 text-[10px] text-state-conflict">
+        <div className="mt-2.5 border-l-2 border-state-conflict/40 bg-state-conflict/[0.06] px-3 py-2 text-[10px] text-state-conflict">
           <p className="font-semibold uppercase tracking-wide">Conflict detected</p>
           <p className="mt-1 text-parchment/80">{conflictDetail ?? "This route overlapped with in-flight work."}</p>
           {conflictPaths.length > 0 && <p className="mt-1 font-mono">{conflictPaths.join(" · ")}</p>}
         </div>
       )}
       {handoff && (
-        <div className="mt-2.5 rounded-lg border border-state-running/30 bg-state-running/5 px-3 py-2 text-[10px]">
+        <div className="mt-2.5 border-l-2 border-state-running/30 px-3 py-2 text-[10px]">
           <p className="font-semibold uppercase tracking-wide text-state-running">Handoff recorded</p>
           <p className="mt-1 text-muted/80">{handoffDecisions.length} decisions · {handoffConstraints.length} constraints · {subtask.filesTouched} files touched</p>
           {handoffDecisions.length > 0 && <p className="mt-1 text-parchment/80">{handoffDecisions.slice(0, 2).join(" · ")}</p>}
@@ -163,12 +163,12 @@ export function Inspector({
   }, [agent, events, subtask]);
 
   return (
-    <aside className="min-w-0 overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-card xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
-      <div className="p-4">
+    <aside className="min-w-0 overflow-hidden rounded-xl bg-ink-900 xl:sticky xl:top-4 xl:flex xl:h-[calc(100vh-2rem)] xl:flex-col">
+      <div className="p-4 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col">
         <ContextSummary agent={agent} subtask={subtask} events={relevantEvents} />
 
         {/* Tab bar */}
-        <div role="tablist" aria-label="Inspector views" className="mb-4 grid grid-cols-4 gap-1 rounded-lg bg-ink-800 p-1">
+        <div role="tablist" aria-label="Inspector views" className="mb-4 grid shrink-0 grid-cols-4 gap-1 rounded-lg bg-ink-800 p-1">
           {TABS.map((item) => (
             <button
               key={item.id}
@@ -187,7 +187,7 @@ export function Inspector({
           ))}
         </div>
 
-        <div role="tabpanel" className="min-h-48">
+        <div role="tabpanel" className="min-h-48 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
           {tab === "output" && <OutputPanel events={relevantEvents} />}
           {tab === "files" && <FilesPanel events={relevantEvents} />}
           {tab === "preview" && <LivePreview />}
@@ -195,7 +195,7 @@ export function Inspector({
             <section>
               <h3 className="mb-2.5 text-[11px] font-medium uppercase tracking-widest text-state-info">Recent activity</h3>
               {relevantEvents.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-ink-700 px-4 py-5 text-center text-[10px] text-muted/60">
+                <p className="px-4 py-5 text-center text-[10px] text-muted/60">
                   No activity for this selection yet.
                 </p>
               ) : (

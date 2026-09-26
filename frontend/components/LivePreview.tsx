@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 /**
  * Live preview shows the app the agents are building — not this app. The
- * iframe therefore only renders when NEXT_PUBLIC_PREVIEW_URL points at a
- * real generated-workspace preview (the backend exposes none today, so by
- * default there is nothing to show and we say so). The old default of
- * http://localhost:3000 iframed this dashboard inside itself and is gone.
+ * iframe renders a separately-running generated-workspace preview. The
+ * dashboard origin is rejected to avoid embedding this app inside itself.
  */
 const CONFIGURED_URL = process.env.NEXT_PUBLIC_PREVIEW_URL ?? "";
+const PREVIEW_STORAGE_KEY = "unfoldx.preview_url";
 
-function isSelfReferential(url: string): boolean {
+function isUsablePreviewUrl(url: string): boolean {
   try {
-    return new URL(url).host === window.location.host;
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      parsed.host !== window.location.host;
   } catch {
-    return true; // unparseable URL: treat as unusable rather than guess
+    return false;
   }
 }
 
@@ -62,12 +63,19 @@ function CloseIcon() {
 export function LivePreview() {
   const [open, setOpen] = useState(false);
   const [key, setKey] = useState(0);
+  const [urlInput, setUrlInput] = useState(CONFIGURED_URL);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [urlError, setUrlError] = useState("");
 
-  // A URL that is missing, unparseable, or points at this app's own origin
-  // never becomes an iframe — the placeholder renders instead.
-  const previewUrl = useMemo(() => {
-    if (!CONFIGURED_URL) return null;
-    return isSelfReferential(CONFIGURED_URL) ? null : CONFIGURED_URL;
+  useEffect(() => {
+    const savedUrl = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
+    const initialUrl = savedUrl && isUsablePreviewUrl(savedUrl)
+      ? savedUrl
+      : CONFIGURED_URL && isUsablePreviewUrl(CONFIGURED_URL)
+        ? CONFIGURED_URL
+        : "";
+    setUrlInput(initialUrl);
+    if (initialUrl) setPreviewUrl(initialUrl);
   }, []);
 
   useEffect(() => {
@@ -80,6 +88,37 @@ export function LivePreview() {
   }, [open]);
 
   const refresh = () => setKey((k) => k + 1);
+  const connectPreview = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const candidate = urlInput.trim();
+    if (!isUsablePreviewUrl(candidate)) {
+      setUrlError("Enter an http(s) URL on a different host, such as http://localhost:3001.");
+      return;
+    }
+    window.localStorage.setItem(PREVIEW_STORAGE_KEY, candidate);
+    setUrlInput(candidate);
+    setPreviewUrl(candidate);
+    setUrlError("");
+  };
+
+  const urlForm = (
+    <form onSubmit={connectPreview} className="flex gap-1.5">
+      <input
+        type="url"
+        value={urlInput}
+        onChange={(event) => setUrlInput(event.target.value)}
+        placeholder="http://localhost:3001"
+        aria-label="Preview URL"
+        className="min-w-0 flex-1 rounded-sm border border-ink-700 bg-ink-900 px-2 py-1.5 font-mono text-[10px] text-parchment placeholder:text-muted/60 focus:border-state-orchestration focus:outline-none"
+      />
+      <button
+        type="submit"
+        className="shrink-0 rounded-sm bg-ink-700 px-2 text-[10px] font-medium text-parchment hover:bg-ink-600"
+      >
+        Connect
+      </button>
+    </form>
+  );
 
   if (!previewUrl) {
     return (
@@ -87,14 +126,16 @@ export function LivePreview() {
         <div className="mb-2 flex items-center justify-between gap-2">
           <h2 className="text-sm font-medium text-muted">Live preview</h2>
         </div>
-        <div className="flex h-52 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-ink-700 bg-ink-900 px-6 text-center">
-          <MonitorOffIcon />
-          <p className="text-xs font-medium text-parchment/80">Preview not connected</p>
-          <p className="text-[11px] leading-relaxed text-muted/70">
-            No preview URL is configured. The backend does not serve generated-workspace
-            previews yet; set <span className="font-mono text-muted">NEXT_PUBLIC_PREVIEW_URL</span> to a
-            running preview host (not this app) to enable it.
+        <div className="rounded-md bg-ink-800/50 p-3">
+          <div className="mb-2 flex items-center gap-2 text-parchment/80">
+            <MonitorOffIcon />
+            <p className="text-xs font-medium">Preview not connected</p>
+          </div>
+          {urlForm}
+          <p className="mt-2 text-[11px] leading-relaxed text-muted/70">
+            Enter the URL of the running app you want to preview. The backend does not start a preview server automatically.
           </p>
+          {urlError && <p role="alert" className="mt-1 text-[11px] text-state-conflict">{urlError}</p>}
         </div>
       </section>
     );
@@ -133,6 +174,11 @@ export function LivePreview() {
           </div>
         </div>
 
+        <div className="mb-2">
+          {urlForm}
+          {urlError && <p role="alert" className="mt-1 text-[11px] text-state-conflict">{urlError}</p>}
+        </div>
+
         <div className="overflow-hidden rounded-md border border-ink-700 bg-ink-900">
           <div className="flex items-center gap-2 border-b border-ink-700 px-3 py-2">
             <span className="h-2 w-2 shrink-0 rounded-full bg-state-running" />
@@ -143,7 +189,7 @@ export function LivePreview() {
               rel="noreferrer"
               className="ml-auto shrink-0 text-[10px] font-medium text-state-orchestration hover:text-parchment"
             >
-              open ↗
+              Open in new tab ↗
             </a>
           </div>
           <iframe

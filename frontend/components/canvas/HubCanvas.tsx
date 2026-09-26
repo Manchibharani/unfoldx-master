@@ -26,29 +26,34 @@ function buildFlow(
   model: HubModel,
   permissions: Permissions,
   onAction: (action: ControlAction) => void,
-  selection: HubSelection
+  selection: HubSelection,
+  removedNodeIds: Set<string>,
+  onRemoveNode: (nodeId: string) => void
 ) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+  const visibleSubtasks = model.subtasks.filter((subtask) => !removedNodeIds.has(`subtask-${subtask.id}`));
+  const visibleAgents = model.agents.filter((agent) => !removedNodeIds.has(agent.id));
 
-  model.subtasks.forEach((subtask, i) => {
+  visibleSubtasks.forEach((subtask, i) => {
+    const nodeId = `subtask-${subtask.id}`;
     nodes.push({
-      id: `subtask-${subtask.id}`,
+      id: nodeId,
       type: "subtask",
       selected: selection?.kind === "subtask" && selection.id === subtask.id,
       position: { x: LAYOUT.subtaskX, y: i * LAYOUT.subtaskGap },
-      data: { subtask, onAction, permissions },
+      data: { subtask, onAction, permissions, onRemoveNode },
     });
     edges.push({
       id: `decompose-${subtask.id}`,
       source: "hub-bob",
-      target: `subtask-${subtask.id}`,
+      target: nodeId,
       type: "smoothstep",
       style: { stroke: "#243357", strokeDasharray: "4 4" },
     });
   });
 
-  const hubY = Math.max(0, ((model.subtasks.length - 1) * LAYOUT.subtaskGap) / 2);
+  const hubY = Math.max(0, ((visibleSubtasks.length - 1) * LAYOUT.subtaskGap) / 2);
   nodes.push({
     id: "hub-bob",
     type: "hub",
@@ -57,17 +62,17 @@ function buildFlow(
     data: { agent: model.bob, subtaskCount: model.subtasks.length, onAction, permissions },
   });
 
-  model.agents.forEach((agent, i) => {
+  visibleAgents.forEach((agent, i) => {
     nodes.push({
       id: agent.id,
       type: "agent",
       selected: selection?.kind === "agent" && selection.id === agent.id,
       position: { x: LAYOUT.agentX, y: i * LAYOUT.agentGap },
-      data: { agent, onAction, permissions },
+      data: { agent, onAction, permissions, onRemoveNode },
     });
   });
 
-  model.subtasks.forEach((subtask) => {
+  visibleSubtasks.forEach((subtask) => {
     if (!subtask.provider) return;
     const target = subtask.provider === "bob" ? "hub-bob" : `agent-${subtask.provider}`;
     const running = subtask.status === "running";
@@ -101,7 +106,11 @@ function buildFlow(
     });
   }
 
-  return { nodes, edges };
+  const visibleNodeIds = new Set(nodes.map((node) => node.id));
+  return {
+    nodes,
+    edges: edges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)),
+  };
 }
 
 /** Keep user-moved positions and selection while refreshing node data. */
@@ -126,9 +135,15 @@ export function HubCanvas({
   selection: HubSelection;
   onSelectionChange: (selection: HubSelection) => void;
 }) {
+  const [removedNodeIds, setRemovedNodeIds] = useState<Set<string>>(() => new Set());
+  const onRemoveNode = useCallback((nodeId: string) => {
+    if (nodeId === "hub-bob") return;
+    setRemovedNodeIds((current) => new Set(current).add(nodeId));
+    onSelectionChange(null);
+  }, [onSelectionChange]);
   const derived = useMemo(
-    () => buildFlow(model, permissions, onAction, selection),
-    [model, permissions, onAction, selection]
+    () => buildFlow(model, permissions, onAction, selection, removedNodeIds, onRemoveNode),
+    [model, permissions, onAction, selection, removedNodeIds, onRemoveNode]
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(derived.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(derived.edges);

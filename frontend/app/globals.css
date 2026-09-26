@@ -30,19 +30,19 @@ body {
 }
 
 .react-flow__controls {
-  background-color: #0D1525 !important;
+  background-color: #101624 !important;
 }
 
 .react-flow__controls-button {
-  background-color: #0D1525 !important;
-  border-color: #1A2847 !important;
-  color: #8A96A8 !important;
-  fill: #8A96A8 !important;
+  background-color: #101624 !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  color: #7E899F !important;
+  fill: #7E899F !important;
 }
 
 .react-flow__controls-button:hover {
   background-color: #121E33 !important;
-  fill: #E8EDF5 !important;
+  fill: #E8ECF5 !important;
 }
 
 .handoff-edge .react-flow__edge-path {

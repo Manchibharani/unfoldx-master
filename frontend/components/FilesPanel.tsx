@@ -85,11 +85,11 @@ export function FilesPanel({ events }: { events: import("@/lib/types").Workspace
     <section>
       <h2 className="mb-2 text-sm font-medium text-muted">Files</h2>
       {tree === null || model.taskId === null ? (
-        <p className="rounded-md border border-dashed border-ink-700 px-3 py-4 text-[11px] text-muted/60">
+        <p className="px-3 py-4 text-[11px] text-muted/60">
           No files touched yet — completed subtasks report their touched files here.
         </p>
       ) : (
-        <div className="rounded-md border border-ink-700 bg-ink-950 px-2 py-2">
+        <div className="rounded-md bg-ink-800/50 px-2 py-2">
           <div className="mb-1 flex items-center justify-between px-1 text-[10px] text-muted/60">
             <span className="font-mono">task {model.taskId.slice(0, 8)}</span>
             <span title={model.statusInferred ? "No plan seen — status is a fallback guess" : "created vs modified inferred from the plan's declared file claims"}>

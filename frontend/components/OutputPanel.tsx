@@ -56,7 +56,7 @@ function TaskStreamView({ stream, defaultOpen }: { stream: TaskStream; defaultOp
   }, [lastLen, open]);
 
   return (
-    <div className="overflow-hidden rounded-md border border-ink-700 bg-ink-950">
+    <div className="overflow-hidden rounded-md bg-ink-800/70">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -108,7 +108,7 @@ export function OutputPanel({ events }: { events: WorkspaceEvent[] }) {
     <section>
       <h2 className="mb-2 text-sm font-medium text-muted">Output</h2>
       {streams.length === 0 ? (
-        <p className="rounded-md border border-dashed border-ink-700 px-3 py-4 text-[11px] text-muted/60">
+        <p className="px-3 py-4 text-[11px] text-muted/60">
           No agent output yet — agent text appears here as each subtask completes.
         </p>
       ) : (
