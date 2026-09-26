@@ -4,6 +4,7 @@ Pipeline per line: adapter.parse_line -> AgentEvent -> log_line / budget_update 
 appended to the hash-chained log (which fans out over Redis/WebSocket)."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Awaitable, Callable
