@@ -51,6 +51,6 @@ python backend/scripts/codex_worker.py
 
 The worker makes an outbound connection, so Railway does not need to reach your localhost.
 
-When the worker is connected, UNFOLD X routes Codex work through it and labels the execution as **local worker / ChatGPT-authenticated**.
+When the worker is connected, UNFOLD X routes Codex work through it and labels the execution as **agent bridge / ChatGPT-authenticated**.
 
-If the worker is offline, Codex is not considered authenticated by the local-worker path.
+If the worker is offline, Codex is not considered authenticated by the agent-bridge path.
