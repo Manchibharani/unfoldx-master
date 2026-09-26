@@ -16,6 +16,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const CONFIGURED_URL = process.env.NEXT_PUBLIC_PREVIEW_URL ?? "";
 const PREVIEW_STORAGE_KEY = "unfoldx.preview_url";
 const DISCOVERY_POLL_MS = 8000;
+const PINNED_HEALTH_CHECK_MS = 15000;
 
 type PreviewSource = { url: string; origin: "discovered" | "configured" | "manual" };
 
@@ -123,6 +124,38 @@ export function LivePreview({ workspaceId = "demo-workspace" }: { workspaceId?: 
       setPreview({ url: CONFIGURED_URL, origin: "configured" });
     }
   }, []);
+
+  // Self-heal: a PINNED url whose server died (restart, closed dev server — e.g. a stale
+  // localhost:PORT link) must not leave a permanently blank pane. Ping it; when it stops
+  // responding, drop the pin and fall back to the workspace artifact discovery.
+  useEffect(() => {
+    if (!preview || preview.origin === "discovered") return;
+    const pinnedUrl = preview.url;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        // no-cors: an opaque response still proves the server is alive; a refused
+        // connection / DNS failure rejects and triggers the fallback.
+        await fetch(pinnedUrl, { mode: "no-cors", cache: "no-store" });
+      } catch {
+        if (cancelled || configuredRef.current === false) return;
+        configuredRef.current = false;
+        try {
+          window.localStorage.removeItem(PREVIEW_STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+        setPreview(null);
+        setDiscoveryNonce((n) => n + 1); // discovery effect takes over again
+      }
+    };
+    const timer = window.setInterval(check, PINNED_HEALTH_CHECK_MS);
+    void check();
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [preview]);
 
   useEffect(() => {
     if (!open) return;
