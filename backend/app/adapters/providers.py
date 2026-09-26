@@ -8,7 +8,7 @@ _PROBE = "reply with exactly: UAW_AUTH_PROBE_OK"
 
 
 class BobAdapter(CliAdapter):
-    """IBM Bob Shell: Plan-mode decomposition + headless execution (`bob run --output-format stream-json`)."""
+    """IBM Bob Shell: Plan-mode decomposition + headless execution (`bob run --format stream-json`)."""
     provider, binary = "bob", "bob"
     api_key_env_attr, cmd_attr, plan_cmd_attr = "bob_api_key_env", "bob_cmd", "bob_plan_cmd"
 
