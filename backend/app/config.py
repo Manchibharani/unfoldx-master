@@ -85,8 +85,8 @@ class Settings(BaseSettings):
     max_subtask_attempts: int = 4
 
     # --- provider CLI command templates ({prompt} becomes ONE argv token; no shell is involved) --
-    bob_cmd: str = "bob run --output-format stream-json {prompt}"
-    bob_plan_cmd: str = "bob run --mode plan --output-format stream-json {prompt}"
+    bob_cmd: str = "bob run --format stream-json {prompt}"
+    bob_plan_cmd: str = "bob run --mode plan --format stream-json {prompt}"
     codex_cmd: str = "codex exec --json --skip-git-repo-check -s danger-full-access {prompt}"
     codex_plan_cmd: str = "codex exec --json --skip-git-repo-check -s read-only {prompt}"
     gemini_cmd: str = "agy -p {prompt} --output-format stream-json --mode accept-edits"
