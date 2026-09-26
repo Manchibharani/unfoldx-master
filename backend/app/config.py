@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # NO port-wildcard support in the plain origin list ("http://localhost:*" would be
     # treated as a literal string that never matches), so the dev wildcard is expressed
     # via cors_origin_regex instead. In production set explicit origins and an empty regex.
-    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://aashvarsha26.github.io"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://aashvarsha26.github.io,https://creative-unity-production.up.railway.app"
     cors_origin_regex: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
     seed_demo_workspace: bool = True  # creates `demo-workspace` on startup when auth_mode=open
     demo_workspace_id: str = "demo-workspace"
