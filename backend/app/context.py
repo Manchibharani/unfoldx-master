@@ -7,7 +7,7 @@ from .bus import InMemoryBus, RedisBus
 from .config import Settings
 from .db import Database
 from .events import EventService
-from .local_worker import LocalCodexBroker
+from .local_worker import LocalAgentBridge
 from .security import Vault
 from .services.budget import BudgetService
 from .services.entitlement import EntitlementService
