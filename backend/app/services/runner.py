@@ -41,6 +41,75 @@ class AgentRunner:
     def __init__(self, ctx):
         self.ctx = ctx
 
+    async def _run_local_codex(self, *, ws_id: str, task_id: str | None, subtask_id: str | None,
+                              agent: Agent, req: RunRequest, conn, ident: dict,
+                              on_file: Callable[[str], Awaitable[None]] | None) -> RunOutcome:
+        ctx = self.ctx
+        adapter = ctx.adapters[agent.provider]
+        out = RunOutcome(session_id=req.session_id, simulated=False)
+        await ctx.budget.record(ws_id, agent.provider, requests=1)
+        await ctx.events.append(ws_id, "dispatch_started", {
+            "command": "[local worker] codex exec (ChatGPT-authenticated)", "agent": agent.name,
+            "provider": agent.provider, "mode": req.mode, "simulated": False, "title": req.title,
+            "execution": "local_worker"}, **ident)
+        try:
+            queue = await ctx.local_codex.enqueue(session_id=req.session_id, workspace_id=ws_id,
+                                                  prompt=req.prompt, mode=req.mode)
+        except RuntimeError as e:
+            out.error = str(e)
+            out.error_kind = "auth"
+            return out
+        buffer, result_text = [], ""
+        state = {}
+        try:
+            while True:
+                msg = await asyncio.wait_for(queue.get(), timeout=req.timeout)
+                typ = msg.get("type")
+                if typ == "output":
+                    line = str(msg.get("line", ""))
+                    if len("".join(buffer)) < MAX_BUFFER:
+                        buffer.append(line)
+                    for ev in adapter.parse_line(line, state):
+                        if ev.kind == "log":
+                            await ctx.events.append(ws_id, "log_line", {"line": ev.text[:MAX_LINE], "stream": "stdout"}, **ident)
+                        elif ev.kind == "result":
+                            result_text = ev.text or result_text
+                        elif ev.kind == "file":
+                            for f in ev.files:
+                                if f not in out.files:
+                                    out.files.append(f)
+                                if on_file:
+                                    await on_file(f)
+                        elif ev.kind == "usage":
+                            delta = estimate_cost(conn.pricing, ev.tokens_in, ev.tokens_out)
+                            out.cost_usd += delta
+                            out.tokens += ev.tokens_in + ev.tokens_out
+                            await ctx.budget.record(ws_id, agent.provider, cost=delta,
+                                                    tokens_in=ev.tokens_in, tokens_out=ev.tokens_out)
+                elif typ == "done":
+                    rc = msg.get("exit_code", 1)
+                    if rc == 0:
+                        out.ok = True
+                    else:
+                        out.error = f"{adapter.display_name} local worker exited with code {rc}"
+                        out.error_kind = "crash"
+                    break
+                elif typ == "error":
+                    out.error = str(msg.get("message", "local Codex worker failed"))
+                    out.error_kind = "crash"
+                    break
+        except asyncio.TimeoutError:
+            out.error = f"{adapter.display_name} local worker timed out after {int(req.timeout)}s"
+            out.error_kind = "crash"
+        finally:
+            ctx.local_codex.finish(req.session_id)
+        out.final_text = result_text or "\n".join(buffer[-20:])
+        if out.ok and req.mode != "plan" and out.final_text.strip():
+            await ctx.events.append(ws_id, "agent_output", {
+                "text": out.final_text.strip()[:20_000], "simulated": False,
+                "structured": False, "execution": "local_worker"}, **ident)
+        return out
+
     async def run(self, *, ws_id: str, task_id: str | None, subtask_id: str | None, agent: Agent, req: RunRequest,
                   on_handle: Callable[[RunHandle], None] | None = None,
                   on_file: Callable[[str], Awaitable[None]] | None = None) -> RunOutcome:
@@ -55,6 +124,12 @@ class AgentRunner:
         req.env, req.home = env, ctx.settings.workspaces_root / ws_id / "home" / agent.provider
         ident = dict(agent_id=agent.id, task_id=task_id, subtask_id=subtask_id, provider=agent.provider,
                      model=req.model or agent.model, session_id=req.session_id)
+        # Codex can run on the user's machine using ChatGPT OAuth instead of an API key.
+        # Railway remains the orchestrator; the local worker owns the authenticated CLI process.
+        if agent.provider == "codex" and ctx.local_codex.enabled:
+            return await self._run_local_codex(ws_id=ws_id, task_id=task_id, subtask_id=subtask_id,
+                                               agent=agent, req=req, conn=conn, ident=ident, on_file=on_file)
+
         try:
             handle = await adapter.start(req, keep_host_home=keep_home)
         except AdapterUnavailable as e:
