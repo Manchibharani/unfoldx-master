@@ -63,6 +63,18 @@ async def current_user(request: Request, ctx: AppContext = Depends(get_ctx), ses
     return await resolve_user(ctx, session, bearer(request))
 
 
+async def current_user_optional(request: Request, ctx: AppContext = Depends(get_ctx),
+                                session: AsyncSession = Depends(get_session)) -> User | None:
+    """Like current_user, but None instead of 401 when no valid token is presented.
+    For iframe-facing routes (Preview): a browser cannot attach an Authorization
+    header to an iframe src, so those routes must degrade to anonymous access.
+    JWT mode still enforces the role check inside the route via authorize()."""
+    try:
+        return await resolve_user(ctx, session, bearer(request))
+    except HTTPException:
+        return None
+
+
 async def role_for(ctx: AppContext, session: AsyncSession, ws_id: str, user: User) -> str | None:
     m = (await session.execute(select(Member).where(Member.workspace_id == ws_id, Member.user_id == user.id))).scalar_one_or_none()
     if m:

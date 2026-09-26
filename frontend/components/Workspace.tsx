@@ -152,6 +152,7 @@ export function Workspace() {
               selection={selection}
               onSelectionChange={setSelection}
               pluginPanels={canvasPlugins}
+              workspaceId={WORKSPACE_ID}
             />
             <div className="pointer-events-none absolute right-3 top-3 z-10">
               <ChainBadge workspaceId={WORKSPACE_ID} eventsLen={events.length} />
@@ -161,7 +162,7 @@ export function Workspace() {
         </section>
 
         {/* Right column — Inspector */}
-        <Inspector agents={ledgerAgents} selection={selection} subtasks={hub.subtasks} events={events} />
+        <Inspector agents={ledgerAgents} selection={selection} subtasks={hub.subtasks} events={events} workspaceId={WORKSPACE_ID} />
       </div>
 
       {/* ── Event log (collapsible) ─────────────────────────── */}

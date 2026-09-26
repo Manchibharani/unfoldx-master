@@ -145,11 +145,13 @@ export function Inspector({
   selection,
   subtasks,
   events,
+  workspaceId,
 }: {
   agents: AgentState[];
   selection: HubSelection;
   subtasks: SubtaskState[];
   events: WorkspaceEvent[];
+  workspaceId: string;
 }) {
   const [tab, setTab] = useState<InspectorTab>("output");
   const agent = selection?.kind === "agent"
@@ -190,7 +192,7 @@ export function Inspector({
         <div role="tabpanel" className="min-h-48 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
           {tab === "output" && <OutputPanel events={relevantEvents} />}
           {tab === "files" && <FilesPanel events={relevantEvents} />}
-          {tab === "preview" && <LivePreview />}
+          {tab === "preview" && <LivePreview workspaceId={workspaceId} />}
           {tab === "activity" && (
             <section>
               <h3 className="mb-2.5 text-[11px] font-medium uppercase tracking-widest text-state-info">Recent activity</h3>

@@ -33,7 +33,8 @@ function buildFlow(
   selection: HubSelection,
   removedNodeIds: Set<string>,
   onRemoveNode: (nodeId: string) => void,
-  pluginPanels: CanvasPluginPanel[]
+  pluginPanels: CanvasPluginPanel[],
+  workspaceId: string
 ) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -85,7 +86,7 @@ function buildFlow(
       id: panel.id,
       type: panel.plugin,
       position: { x: LAYOUT.agentX + 360, y: i * 320 },
-      data: { panel, onRemoveNode },
+      data: { panel, onRemoveNode, workspaceId },
     });
   });
 
@@ -146,6 +147,7 @@ export function HubCanvas({
   selection,
   onSelectionChange,
   pluginPanels,
+  workspaceId,
 }: {
   model: HubModel;
   permissions: Permissions;
@@ -153,6 +155,7 @@ export function HubCanvas({
   selection: HubSelection;
   onSelectionChange: (selection: HubSelection) => void;
   pluginPanels: CanvasPluginPanel[];
+  workspaceId: string;
 }) {
   const [removedNodeIds, setRemovedNodeIds] = useState<Set<string>>(() => new Set());
   const onRemoveNode = useCallback((nodeId: string) => {
@@ -161,8 +164,8 @@ export function HubCanvas({
     onSelectionChange(null);
   }, [onSelectionChange]);
   const derived = useMemo(
-    () => buildFlow(model, permissions, onAction, selection, removedNodeIds, onRemoveNode, pluginPanels),
-    [model, permissions, onAction, selection, removedNodeIds, onRemoveNode, pluginPanels]
+    () => buildFlow(model, permissions, onAction, selection, removedNodeIds, onRemoveNode, pluginPanels, workspaceId),
+    [model, permissions, onAction, selection, removedNodeIds, onRemoveNode, pluginPanels, workspaceId]
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(derived.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(derived.edges);

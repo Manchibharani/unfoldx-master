@@ -4,10 +4,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..context import AppContext
-from ..deps import Access, current_user, get_ctx, get_session, resolve_user, role_for, ws_access
+from ..deps import Access, authorize, current_user, current_user_optional, get_ctx, get_session, role_for, ws_access
 from ..models import Agent, Member, Subtask, Task, User, Workspace
 from ..schemas import MemberIn, WorkspaceCreate
 from ..services.workspaces import create_workspace
+from ..services.architecture import scan_architecture
 from .serializers import agent_out, subtask_out, task_out
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
@@ -19,7 +20,7 @@ _PREVIEW_SUFFIXES = (".html", ".htm")
 _PREVIEW_PREFERRED_NAMES = ("index.html",)
 
 
-def _previewable_file(root, files):
+def _previewable_file(files):
     """Pick the file to show in the auto-preview: index.html > any other .html > first text file."""
     for name in _PREVIEW_PREFERRED_NAMES:
         for f in files:
@@ -84,7 +85,15 @@ async def preview_target(workspace_id: str, request: Request, ctx: AppContext = 
     if ctx.settings.auth_mode != "open":
         await authorize(ctx, session, workspace_id, user, "view", "read workspace file")
     files = await _files_payload(ctx, workspace_id)
-    return {"path": _previewable_file(ctx.settings.workspaces_root / workspace_id / "repo", files) or ""}
+    return {"path": _previewable_file(files) or ""}
+
+
+@router.get("/{workspace_id}/architecture")
+async def architecture(workspace_id: str, ctx: AppContext = Depends(get_ctx),
+                       a: Access = Depends(ws_access("view", "view workspace architecture"))):
+    """The REAL module graph of this workspace's repo (files + import edges), for the
+    GitHub architecture visualiser panel."""
+    return scan_architecture(ctx.settings.workspaces_root / workspace_id / "repo")
 
 
 @router.post("", status_code=201)
