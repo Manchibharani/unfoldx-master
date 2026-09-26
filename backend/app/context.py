@@ -7,6 +7,7 @@ from .bus import InMemoryBus, RedisBus
 from .config import Settings
 from .db import Database
 from .events import EventService
+from .local_worker import LocalCodexBroker
 from .security import Vault
 from .services.budget import BudgetService
 from .services.entitlement import EntitlementService
@@ -28,6 +29,7 @@ class AppContext:
         self.bus = RedisBus(settings.redis_url) if settings.redis_url else InMemoryBus()
         self.vault = Vault(settings.fernet_key, settings.secret_key)
         self.events = EventService(self.db.sessionmaker, self.bus, settings.secret_key)
+        self.local_codex = LocalCodexBroker(settings.local_worker_token)
         self.adapters = build_adapters(settings)
         self.budget = BudgetService(self.db.sessionmaker)
         self.entitlement = EntitlementService(self.db.sessionmaker, settings, self.vault, self.adapters, self.budget, self.events)
