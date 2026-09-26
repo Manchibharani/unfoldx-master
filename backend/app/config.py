@@ -13,7 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 def _load_env_values(env_file: Path) -> dict[str, str]:
     """KEY=VALUE pairs from a .env file (no interpolation). Unknown keys matter: provider API
-    keys (BOBSHELL_API_KEY, OPENAI_API_KEY, ...) live here and must reach the CLIs' child
+    keys (BOB_API_KEY, OPENAI_API_KEY, ...) live here and must reach the CLIs' child
     processes even though pydantic-settings ignores fields it has no model for."""
     out: dict[str, str] = {}
     if not env_file.is_file():
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     fernet_key: str | None = None  # credential vault key. Derived from secret_key if unset (dev only).
 
     # --- people auth ---------------------------------------------------------------------------
-    # open: no token needed; anonymous callers act as a guest with `open_mode_role` (demo / dev).
+    # open: no token needed; anonymous callers act as a guest with open_mode_role (demo / dev).
     # jwt : every HTTP/WS call needs a valid token (built-in login, or Supabase/Auth0 HS256 secret).
     auth_mode: str = "open"
     open_mode_role: str = "approve"
@@ -112,8 +112,8 @@ class Settings(BaseSettings):
     copilot_api_key_env: str = "GITHUB_TOKEN"
     copilot_cmd: str = "copilot -p {prompt} --allow-all-tools"
     copilot_plan_cmd: str = "copilot -p {prompt}"
-    # Env var each CLI reads its API key from (Bob's is an assumption - override to match Bob Shell).
-    bob_api_key_env: str = "BOBSHELL_API_KEY"
+    # Env var each CLI reads its API key from.
+    bob_api_key_env: str = "BOB_API_KEY"
     codex_api_key_env: str = "OPENAI_API_KEY"
     gemini_api_key_env: str = "GEMINI_API_KEY"
 
@@ -129,7 +129,7 @@ class Settings(BaseSettings):
     def _finalize(self) -> "Settings":
         self.data_dir = Path(self.data_dir).resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        # Provider key VALUES (BOBSHELL_API_KEY etc.) are not model fields, so pydantic-settings
+        # Provider key VALUES (BOB_API_KEY etc.) are not model fields, so pydantic-settings
         # parses .env and drops them. Re-apply the whole file into the process environment
         # (without overriding real env vars) so entitlement.credential_env() can find the keys
         # and inject them into provider subprocesses. This is the fix for ".env documents the
