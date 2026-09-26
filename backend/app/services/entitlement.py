@@ -26,7 +26,7 @@ class EntitlementService:
                  budget: BudgetService, events: EventService):
         self._sm, self._settings, self._vault = sm, settings, vault
         self._adapters, self._budget, self._events = adapters, budget, events
-        self._version_cache: dict[str, tuple[float, str | None]] = {}
+        self._version_cache: dict[str, tuple[float, str | None]] = {}\n        self._local_codex_broker = None
         self._poller: asyncio.Task | None = None
 
     # ---- connect / disconnect ---------------------------------------------------------------------
@@ -36,7 +36,7 @@ class EntitlementService:
             raise ValueError(f"unsupported provider {provider!r}; supported: {', '.join(PROVIDERS)}")
         adapter = self._adapters[provider]
         pr = normalize_pricing(provider, pricing)
-        auth_type = "api_key" if api_key else ("host_session" if adapter.available() else "none")
+        auth_type = "api_key" if api_key else ("host_session" if adapter.available() or (provider == "codex" and self._settings.local_worker_token) else "none")
         cipher = self._vault.encrypt(api_key) if api_key else None
         meta = PROVIDERS[provider]
         async with self._sm() as s:
