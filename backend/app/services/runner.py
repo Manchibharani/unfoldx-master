@@ -127,7 +127,7 @@ class AgentRunner:
                      model=req.model or agent.model, session_id=req.session_id)
         # Codex can run on the user's machine using ChatGPT OAuth instead of an API key.
         # Railway remains the orchestrator; the local worker owns the authenticated CLI process.
-        if agent.provider == "codex" and ctx.local_codex.enabled:
+        if agent.provider == "codex" and ctx.local_codex.connected:
             return await self._run_local_codex(ws_id=ws_id, task_id=task_id, subtask_id=subtask_id,
                                                agent=agent, req=req, conn=conn, ident=ident, on_file=on_file)
 
