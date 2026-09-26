@@ -36,7 +36,7 @@ class EntitlementService:
             raise ValueError(f"unsupported provider {provider!r}; supported: {', '.join(PROVIDERS)}")
         adapter = self._adapters[provider]
         pr = normalize_pricing(provider, pricing)
-        auth_type = "api_key" if api_key else ("host_session" if adapter.available() or (provider == "codex" and self._settings.local_worker_token) else "none")
+        auth_type = "api_key" if api_key else ("host_session" if adapter.available() or (provider == "codex" and self._settings.agent_bridge_token) else "none")
         cipher = self._vault.encrypt(api_key) if api_key else None
         meta = PROVIDERS[provider]
         async with self._sm() as s:
