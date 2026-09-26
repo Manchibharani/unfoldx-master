@@ -13,7 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 def _load_env_values(env_file: Path) -> dict[str, str]:
     """KEY=VALUE pairs from a .env file (no interpolation). Unknown keys matter: provider API
-    keys (BOBSHELL_API_KEY, OPENAI_API_KEY, ...) live here and must reach the CLIs' child
+    keys (BOB_API_KEY, OPENAI_API_KEY, ...) live here and must reach the CLIs' child
     processes even though pydantic-settings ignores fields it has no model for."""
     out: dict[str, str] = {}
     if not env_file.is_file():
