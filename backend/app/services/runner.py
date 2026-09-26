@@ -147,4 +147,14 @@ class AgentRunner:
         out.ok = not (out.tripped or out.stopped or out.error) and (handle.simulated or handle.exit_code in (0, None))
         if not out.ok and not out.error and not (out.tripped or out.stopped):
             out.error = f"{adapter.display_name} exited with code {handle.exit_code}"
+
+        # Stream the agent's raw response to the UI as one agent_output event
+        # (the Output panel groups these per task). Only successful runs emit:
+        # partial transcript lines already flowed as log_line events.
+        if out.ok and req.mode != "plan" and out.final_text.strip():
+            await ctx.events.append(ws_id, "agent_output", {
+                "text": out.final_text.strip()[:20_000],
+                "simulated": handle.simulated,
+                "structured": False,
+            }, **ident)
         return out

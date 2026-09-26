@@ -295,6 +295,13 @@ class Orchestrator:
             # ---- conflict check against every other in-flight subtask in the workspace
             blockers = [(o, colliding_paths(sub.target_files, o.files)) for o in running.values()]
             blockers = [(o, p) for o, p in blockers if p]
+            # Provenance for the clean path too: the UI shows every dispatch was
+            # conflict-checked, not only the ones that found a collision.
+            await self.ctx.events.append(ws, "conflict_checked", {
+                "subtask": sub.title, "against": [o.subtask_id for o in running.values()],
+                "checked_paths": sorted({p for _, paths in blockers for p in paths} or list(sub.target_files)),
+                "overlaps": [p for _, paths in blockers for p in paths], "result": "deferred" if blockers else "clear"},
+                task_id=rt.task_id, subtask_id=sub.id, agent_id=decision.agent_id, provider=decision.provider)
             if blockers:
                 if sub.status != "blocked":
                     async with self.sm() as s:
@@ -369,10 +376,11 @@ class Orchestrator:
             else:
                 msg = outcome.error or "agent failed"
                 # Failover: a hard failure of a REAL CLI (bad login, crash, timeout) benches the
-                # provider and re-queues the subtask once, so the router picks the next-best
-                # agent (or a simulated run) instead of failing the whole task. Attempt 2+ is
-                # final: if every real executor is down, the failure is reported as-is.
-                if not outcome.simulated and not rs.redirected and sub.attempts < 2:
+                # provider and re-queues the subtask, so the router picks the next-best agent
+                # (or a simulated run) instead of failing the whole task. The attempt cap
+                # (default 4, one per provider) bounds cost: if every real executor is down the
+                # final failure is reported as-is.
+                if not outcome.simulated and not rs.redirected and sub.attempts < self.ctx.settings.max_subtask_attempts:
                     self.provider_failed(agent.provider)
                     await self._set(sub_id, status="pending", agent_id=agent.id,
                                     forced_agent_id=None, error=None, finished_at=None)

@@ -14,8 +14,8 @@ class WorkspaceEvent(BaseModel):
     seq: int = Field(description="Gapless per-workspace sequence number")
     ts: str = Field(description="ISO-8601 UTC timestamp")
     event_type: Literal["provider_connected", "task_submitted", "plan_decomposed", "route_decided",
-                        "conflict_detected", "dispatch_started", "log_line", "budget_update",
-                        "circuit_breaker_triggered", "handoff_emitted", "agent_output",
+                        "conflict_checked", "conflict_detected", "dispatch_started", "log_line",
+                        "budget_update", "circuit_breaker_triggered", "handoff_emitted", "agent_output",
                         "authorization_denied", "task_completed", "error"]
     agent_id: str | None = None
     task_id: str | None = None

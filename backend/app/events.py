@@ -23,9 +23,9 @@ from .models import EventLogEntry, uid
 GENESIS = "0" * 64
 
 EVENT_TYPES = (
-    "provider_connected", "task_submitted", "plan_decomposed", "route_decided", "conflict_detected",
-    "dispatch_started", "log_line", "budget_update", "circuit_breaker_triggered", "handoff_emitted",
-    "agent_output", "authorization_denied", "task_completed", "error",
+    "provider_connected", "task_submitted", "plan_decomposed", "route_decided", "conflict_checked",
+    "conflict_detected", "dispatch_started", "log_line", "budget_update", "circuit_breaker_triggered",
+    "handoff_emitted", "agent_output", "authorization_denied", "task_completed", "error",
 )
 
 _FIELDS = ("id", "workspace_id", "seq", "ts", "event_type", "agent_id", "task_id", "subtask_id", "provider",

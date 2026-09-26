@@ -9,27 +9,27 @@ CAPABILITIES = ["planning", "architecture", "backend", "frontend", "refactor", "
 
 PROVIDERS: dict[str, dict] = {
     "bob": {
-        "display_name": "IBM Bob", "default_model": "bob-2.0",
+        "display_name": "Bob", "default_model": "bob-2.0",
         "capabilities": {"planning": .95, "architecture": .90, "backend": .80, "refactor": .80, "security": .75,
                          "docs": .70, "testing": .70, "debugging": .70, "frontend": .60, "data": .60, "devops": .60},
         # Bob usage is credit-based; USD conversion is a placeholder to be set from the hackathon account.
         "pricing": {"model": "credits", "usd_per_credit": 0.05, "credits_per_mtok": 20.0},
     },
     "claude_code": {
-        "display_name": "Claude Code", "default_model": "claude",
+        "display_name": "Claude", "default_model": "claude",
         "capabilities": {"backend": .90, "refactor": .90, "debugging": .90, "frontend": .85, "testing": .85,
                          "architecture": .80, "docs": .80, "security": .80, "planning": .75, "data": .75, "devops": .70},
         "pricing": {"model": "token", "input_per_mtok": 3.0, "output_per_mtok": 15.0},
     },
     "codex": {
-        "display_name": "Codex CLI", "default_model": "codex",
+        "display_name": "ChatGPT", "default_model": "codex",
         "capabilities": {"backend": .80, "frontend": .75, "testing": .75, "refactor": .70, "debugging": .70,
                          "devops": .70, "architecture": .65, "docs": .60, "security": .60, "data": .60, "planning": .55},
         "pricing": {"model": "token", "input_per_mtok": 1.25, "output_per_mtok": 10.0},
         "note": "Headless mode reported unstable for sustained non-TTY use: best-effort provider.",
     },
     "gemini": {
-        "display_name": "Gemini CLI", "default_model": "gemini",
+        "display_name": "Antigravity", "default_model": "gemini",
         "capabilities": {"frontend": .80, "docs": .85, "data": .85, "backend": .70, "testing": .65, "planning": .70,
                          "refactor": .65, "debugging": .65, "architecture": .65, "security": .55, "devops": .60},
         "pricing": {"model": "seat", "monthly_usd": 20.0, "monthly_request_quota": 1000, "notional_usd_per_mtok": 2.0},

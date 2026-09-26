@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     # subtask is re-queued to the next-best agent and the failing provider is benched for this
     # many seconds so one broken CLI cannot poison the whole task with repeated failures.
     failover_cooldown_seconds: float = 120.0
+    # Total dispatch attempts one subtask may consume before it is declared failed. With four
+    # providers, a cap of 4 lets every real CLI fail once and the task still finish on a
+    # simulated agent instead of dying because two different CLIs each failed once.
+    max_subtask_attempts: int = 4
 
     # --- provider CLI command templates ({prompt} becomes ONE argv token; no shell is involved) --
     bob_cmd: str = "bob run --output-format stream-json {prompt}"

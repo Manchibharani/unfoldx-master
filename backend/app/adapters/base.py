@@ -168,8 +168,13 @@ class CliAdapter:
     def executable(self) -> str:
         return self.template("execute")[0]
 
+    def resolved_executable(self) -> str | None:
+        """Absolute path to the launcher, resolving .cmd/.bat/.exe shims (npm global installs on
+        Windows ship `codex.cmd`, which create_subprocess_exec cannot spawn by bare name)."""
+        return shutil.which(self.executable())
+
     def available(self) -> bool:
-        return shutil.which(self.executable()) is not None
+        return self.resolved_executable() is not None
 
     # ---- parsing (overridden per provider) ---------------------------------------------------------
     def parse_json_event(self, obj: dict, state: dict) -> list[AgentEvent]:
@@ -221,15 +226,36 @@ class CliAdapter:
             return RunHandle(req.session_id, self.provider, True, "[simulated] " + redact(argv, secrets))
         req.cwd.mkdir(parents=True, exist_ok=True)
         env = sandbox_env(req.env, req.home, keep_host_home)
+        resolved = self.resolved_executable()
+        if resolved and os.name == "nt" and resolved.lower().endswith((".cmd", ".bat")):
+            # npm shims are batch files: only cmd.exe can execute them. argv[0] is replaced by
+            # the shim path and invoked through the shell interpreter with the original args.
+            argv = [env.get("COMSPEC") or "cmd.exe", "/d", "/s", "/c", resolved, *argv[1:]]
+        elif resolved:
+            argv[0] = resolved  # pin the exact binary found on PATH (no re-resolution races)
         if _use_threaded_subprocess():
             proc = subprocess.Popen(
                 argv, cwd=str(req.cwd), env=env,
                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         else:
-            proc = await asyncio.create_subprocess_exec(
-                *argv, cwd=str(req.cwd), env=env,
-                stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-                start_new_session=True, limit=8 * 1024 * 1024)
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *argv, cwd=str(req.cwd), env=env,
+                    stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+                    start_new_session=True, limit=8 * 1024 * 1024)
+            except (OSError, FileNotFoundError) as e:
+                # create_subprocess_exec on Windows cannot launch cmd.exe batch shims directly.
+                # Fall back to cmd.exe /c with the ORIGINAL argv if the shim rewrite didn't help.
+                if os.name != "nt" or argv[0].lower().endswith((".cmd", ".bat")):
+                    raise
+                batch = shutil.which(argv[0])
+                if batch is None or not batch.lower().endswith((".cmd", ".bat")):
+                    raise
+                cmd_argv = [env.get("COMSPEC") or "cmd.exe", "/d", "/s", "/c", batch, *argv[1:]]
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd_argv, cwd=str(req.cwd), env=env,
+                    stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+                    start_new_session=True, limit=8 * 1024 * 1024)
         return RunHandle(req.session_id, self.provider, False, redact(argv, secrets), proc=proc)
 
     async def stream(self, handle: RunHandle, req: RunRequest) -> AsyncIterator[AgentEvent]:
