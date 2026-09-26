@@ -2,14 +2,15 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /srv
 
-# Node.js is required by IBM Bob Shell and Codex CLI.
+# Node.js 24+ is required by IBM Bob Shell. Codex CLI is installed via npm.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g bobshell @openai/codex \
-    && node --version \
-    && npm --version \
+    && curl -fsSL https://bob.ibm.com/download/bobshell.sh | bash \
+    && npm install -g @openai/codex \
+    && command -v bob \
+    && command -v codex \
     && bob --version \
     && codex --version \
     && rm -rf /var/lib/apt/lists/*
