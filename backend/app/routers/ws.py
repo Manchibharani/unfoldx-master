@@ -75,3 +75,20 @@ async def feed(websocket: WebSocket, workspace_id: str):
                     log.warning("ws closed: %r", exc)
     except WebSocketDisconnect:
         pass
+
+
+@router.websocket("/ws/worker")
+async def local_worker(websocket: WebSocket):
+    """Authenticated outbound worker channel for local ChatGPT-authenticated Codex."""
+    ctx = websocket.app.state.ctx
+    token = websocket.query_params.get("token", "")
+    if not ctx.local_codex.enabled or token != ctx.local_codex.token:
+        await websocket.close(code=st.WS_1008_POLICY_VIOLATION)
+        return
+    await websocket.accept()
+    try:
+        await ctx.local_codex.worker_loop(websocket)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        log.exception("local worker connection failed")
