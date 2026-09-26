@@ -26,7 +26,8 @@ class EntitlementService:
                  budget: BudgetService, events: EventService):
         self._sm, self._settings, self._vault = sm, settings, vault
         self._adapters, self._budget, self._events = adapters, budget, events
-        self._version_cache: dict[str, tuple[float, str | None]] = {}\n        self._local_codex_broker = None
+        self._version_cache: dict[str, tuple[float, str | None]] = {}
+        self._local_codex_broker = None
         self._poller: asyncio.Task | None = None
 
     # ---- connect / disconnect ---------------------------------------------------------------------
