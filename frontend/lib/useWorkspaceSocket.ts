@@ -5,8 +5,9 @@ import { budgetApi } from "./api";
 import type { BudgetSnapshot, ConnectionState, Provider, WorkspaceEvent } from "./types";
 import { startMockFeed } from "./mockEvents";
 
-const MAX_EVENTS = 500;
+const MAX_EVENTS = 2000;
 const MAX_BACKOFF_MS = 10_000;
+const WS_REPLAY = 2000;
 
 export function useWorkspaceSocket(workspaceId: string, token: string | null = null) {
   const [events, setEvents] = useState<WorkspaceEvent[]>([]);
@@ -113,8 +114,8 @@ export function useWorkspaceSocket(workspaceId: string, token: string | null = n
       // query string. AUTH_MODE=open needs no token — only attach one if the
       // session holds a token, otherwise leave the URL clean.
       const url = token
-        ? `${wsUrl}/${workspaceId}?token=${encodeURIComponent(token)}`
-        : `${wsUrl}/${workspaceId}`;
+        ? `${wsUrl}/${workspaceId}?token=${encodeURIComponent(token)}&replay=${WS_REPLAY}`
+        : `${wsUrl}/${workspaceId}?replay=${WS_REPLAY}`;
       const socket = new WebSocket(url);
       socketRef.current = socket;
 

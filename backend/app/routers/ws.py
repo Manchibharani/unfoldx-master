@@ -42,7 +42,7 @@ async def feed(websocket: WebSocket, workspace_id: str):
                 backlog = await ctx.events.list(workspace_id, int(since), 5000)
             else:
                 n = int(q.get("replay", ctx.settings.ws_replay_default)) if q.get("replay", "1").isdigit() else 200
-                backlog = await ctx.events.tail(workspace_id, min(n, 1000)) if n else []
+                backlog = await ctx.events.tail(workspace_id, min(n, 5000)) if n else []
             last = 0
             for e in backlog:
                 await websocket.send_json(e)
