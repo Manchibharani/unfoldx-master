@@ -14,7 +14,7 @@ export const AGENT_PROVIDERS: Provider[] = ["claude_code", "codex", "github_copi
 
 export const PROVIDER_LABEL: Record<Provider, string> = {
   bob: "Bob",
-  claude_code: "OpenCode",
+  claude_code: "Claude",
   codex: "ChatGPT",
   github_copilot: "GitHub Copilot",
   gemini: "Antigravity",
@@ -233,6 +233,11 @@ function stringField(payload: Record<string, unknown>, key: string, fallback: st
   return typeof value === "string" ? value : fallback;
 }
 
+/** Raw provider ids from payloads ("codex", "claude_code") become canonical display names. */
+function displayProviderName(value: string): string {
+  return PROVIDER_LABEL[value as Provider] ?? value;
+}
+
 function subtaskFor(
   event: WorkspaceEvent,
   subtasks: Map<string, SubtaskState>
@@ -284,7 +289,7 @@ export function routeTask(prompt: string): { provider: Provider; reason: string 
   if (bestScore <= 0) {
     return {
       provider: "claude_code",
-      reason: "No capability signal — defaulting to OpenCode for general implementation.",
+      reason: `No capability signal — defaulting to ${PROVIDER_LABEL.claude_code} for general implementation.`,
     };
   }
   return {
@@ -299,7 +304,7 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
   const agents: AgentState[] = AGENT_PROVIDERS.map((p) =>
     freshAgent(`agent-${p}`, p, PROVIDER_LABEL[p], true)
   );
-  const bob = freshAgent("hub-bob", "bob", "Bob Shell", true);
+  const bob = freshAgent("hub-bob", "bob", PROVIDER_LABEL.bob, true);
   for (const added of overrides.addedAgents) {
     agents.push(freshAgent(added.id, added.provider, added.label, false));
   }
@@ -391,7 +396,7 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
           st.agentId = event.agent_id ?? null;
           st.routeReason = typeof p.reason === "string" ? p.reason : null;
         }
-        pushActivity(bob, line(event, "route", `→ ${stringField(p, "agent", event.provider)}: ${stringField(p, "reason", "")}`));
+        pushActivity(bob, line(event, "route", `→ ${displayProviderName(stringField(p, "agent", event.provider))}: ${stringField(p, "reason", "")}`));
         break;
       }
       case "dispatch_started": {

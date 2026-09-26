@@ -11,6 +11,13 @@ from .services.entitlement import EntitlementService
 from .services.orchestrator import Orchestrator
 from .services.runner import AgentRunner
 
+# Agent names previous catalog revisions seeded into the DB ("Codex CLI", "IBM Bob", ...).
+# They leak into routing rationales and failover lines, so they are always safe to overwrite
+# with the provider's canonical display name at startup. A user-customized name (anything
+# else, set via PATCH /agents) is never touched.
+_LEGACY_AGENT_NAMES = {"Codex CLI", "IBM Bob", "Bob Shell", "Claude Code", "Claude CLI",
+                       "Gemini CLI", "Google Antigravity CLI", "GitHub Copilot CLI"}
+
 
 class AppContext:
     def __init__(self, settings: Settings):
@@ -27,12 +34,32 @@ class AppContext:
 
     async def startup(self) -> None:
         await self.db.create_all()
+        await self._heal_agent_names()
         await self.bus.start()
         await self.orchestrator.recover_interrupted()
         if self.settings.seed_demo_workspace and self.settings.auth_mode == "open":
             from .services.workspaces import seed_demo
             await seed_demo(self)
         self.entitlement.start_polling()
+
+    async def _heal_agent_names(self) -> None:
+        """Rename agents still carrying stale names from older catalog revisions to the
+        provider's canonical display name, so the UI and routing rationale never show
+        raw CLI names like "Codex CLI" or "IBM Bob"."""
+        from sqlalchemy import select
+        from .catalog import PROVIDERS
+        from .models import Agent
+        async with self.db.sessionmaker() as s:
+            rows = list((await s.execute(select(Agent))).scalars())
+            changed = 0
+            for a in rows:
+                canonical = PROVIDERS.get(a.provider, {}).get("display_name")
+                if canonical and a.name != canonical and (
+                        a.name in _LEGACY_AGENT_NAMES or not a.name.strip()):
+                    a.name = canonical
+                    changed += 1
+            if changed:
+                await s.commit()
 
     async def shutdown(self) -> None:
         await self.entitlement.stop_polling()

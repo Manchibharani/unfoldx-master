@@ -130,10 +130,11 @@ def choose(capabilities: list[str], description: str, candidates: list[Candidate
 
     others = ", ".join(f"{c.name} {s:.2f}" for s, c, _, _ in scored[1:4])
     why = "explicitly requested" if forced_agent_id else "highest combined score"
+    avoid_display = next((c.name for c in candidates if c.provider == avoid_provider), avoid_provider)
     rationale = (f"{best.name} ({why}) for [{', '.join(capabilities)}]: capability fit {bd['capability_fit']:.2f}, "
                  f"est. cost ${est:.3f}, ${best.budget['remaining_usd']:.2f} of ${best.budget['cap_usd']:.2f} budget left"
                  + (f". Runners-up: {others}" if others else "") + (f". Skipped: {'; '.join(reasons)}" if reasons else "")
-                 + (f". Coordinated: spread to {best.provider} (avoiding {avoid_provider})"
+                 + (f". Coordinated: spread to {best.name} (avoiding {avoid_display})"
                     if avoid_provider is not None and best.provider != avoid_provider else ""))
     bd["candidates"] = [{"agent_id": c.agent_id, "provider": c.provider, **b} for _, c, _, b in scored]
     return RouteDecision(best.agent_id, best.provider, round(best_score, 4), est, best.budget["remaining_usd"], rationale, bd)

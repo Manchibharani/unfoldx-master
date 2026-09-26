@@ -730,6 +730,39 @@ def test_choose_all_unavailable_keeps_simulation_fallback():
         choose([], "x", [])
 
 
+def test_stale_legacy_agent_names_are_healed(make_client):
+    """Agents seeded by older catalog revisions ("Codex CLI", "IBM Bob", ...) must be renamed
+    to the canonical display name at startup, and connect() must keep healing them — otherwise
+    raw CLI names leak into routing rationales and the UI."""
+    with make_client() as c:
+        # Simulate rows written by an older revision, then run the heal directly (same pass
+        # startup() performs) so the test stays synchronous.
+        sql(c, "UPDATE agents SET name='Codex CLI' WHERE provider='codex'")
+        sql(c, "UPDATE agents SET name='IBM Bob' WHERE provider='bob'")
+        import asyncio
+        asyncio.get_event_loop_policy()
+        asyncio.run(c.app.state.ctx._heal_agent_names())
+        rows = {p: n for p, n in sql(c, "SELECT provider, name FROM agents")}
+        assert rows["codex"] == "ChatGPT" and rows["bob"] == "Bob"
+
+        # A later connect() on the same workspace re-heals too (connect-time pass).
+        sql(c, "UPDATE agents SET name='Gemini CLI' WHERE provider='gemini'")
+        c.post("/api/workspaces/demo-workspace/providers/gemini/refresh")
+        # refresh only bumps the version cache; the heal runs on connect() — re-connect:
+        r = c.post("/api/workspaces/demo-workspace/providers", json={"provider": "gemini", "plan": "demo"})
+        assert r.status_code in (200, 201), r.text
+        rows = {p: n for p, n in sql(c, "SELECT provider, name FROM agents")}
+        assert rows["gemini"] == "Antigravity"
+
+        # A user-customized name (PATCH) is never overwritten by the legacy heal.
+        ags = c.get("/api/workspaces/demo-workspace/agents").json()
+        target = next(a for a in ags if a["provider"] == "codex")
+        c.patch(f"/api/workspaces/demo-workspace/agents/{target['id']}", json={"name": "My Renamed Bot"})
+        asyncio.run(c.app.state.ctx._heal_agent_names())
+        rows = {p: n for p, n in sql(c, "SELECT provider, name FROM agents")}
+        assert rows["codex"] == "My Renamed Bot"
+
+
 def test_end_to_end_task_routes_to_real_gemini_when_bob_cli_missing(make_client):
     with make_client() as c:
         # only Antigravity (agy) has a genuinely runnable CLI on this host; bob/claude/codex do not.

@@ -210,10 +210,10 @@ class Orchestrator:
             return None
         if not self.ctx.settings.allow_simulation:
             await self._finish(rt, "failed",
-                               "No planner available: IBM Bob is not connected to this workspace and simulation is disabled")
+                               "No planner available: Bob is not connected to this workspace and simulation is disabled")
             return None
         await self.ctx.events.append(ws, "log_line", {
-            "line": "IBM Bob is not connected; using heuristic decomposition instead of Bob Plan-mode", "level": "warning"},
+            "line": "Bob is not connected; using heuristic decomposition instead of Bob Plan-mode", "level": "warning"},
             task_id=task.id)
         fallback = parse_plan("```json\n" + json.dumps(heuristic_plan(task.prompt)) + "\n```")
         return fallback, "heuristic-fallback", None  # type: ignore[return-value]

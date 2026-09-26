@@ -38,6 +38,7 @@ class EntitlementService:
         pr = normalize_pricing(provider, pricing)
         auth_type = "api_key" if api_key else ("host_session" if adapter.available() else "none")
         cipher = self._vault.encrypt(api_key) if api_key else None
+        meta = PROVIDERS[provider]
         async with self._sm() as s:
             conn = (await s.execute(select(ProviderConnection).where(
                 ProviderConnection.workspace_id == ws_id, ProviderConnection.provider == provider))).scalar_one_or_none()
@@ -52,13 +53,22 @@ class EntitlementService:
             has_agent = (await s.execute(select(Agent.id).where(
                 Agent.workspace_id == ws_id, Agent.provider == provider).limit(1))).first()
             if not has_agent:
-                meta = PROVIDERS[provider]
                 s.add(Agent(workspace_id=ws_id, provider=provider, name=meta["display_name"],
                             model=meta["default_model"], capabilities=dict(meta["capabilities"])))
             await s.commit()
         ledger = await self._budget.ensure(ws_id, provider, cap_usd if cap_usd is not None else self._settings.default_budget_cap_usd)
         if cap_usd is not None and abs(ledger["cap_usd"] - cap_usd) > 1e-9:
             ledger = await self._budget.set_cap(ws_id, provider, cap_usd)
+        # Legacy seed names from older catalog revisions ("Codex CLI", "IBM Bob", "Claude Code",
+        # "Bob Shell", "Gemini CLI") used to stick in the DB forever and leak into routing
+        # rationales and failover lines. Heal them to the current catalog display name.
+        if has_agent:
+            async with self._sm() as s:
+                for row in (await s.execute(select(Agent).where(
+                        Agent.workspace_id == ws_id, Agent.provider == provider))).scalars():
+                    if row.name != meta["display_name"]:
+                        row.name = meta["display_name"]
+                await s.commit()
         mode = "real" if adapter.available() else ("simulated" if self._settings.allow_simulation else "unavailable")
         note = {"real": "CLI found on host", "simulated": f"'{adapter.executable()}' CLI not installed - running SIMULATED agent",
                 "unavailable": f"'{adapter.executable()}' CLI not installed and simulation disabled"}[mode]

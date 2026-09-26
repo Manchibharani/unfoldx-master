@@ -45,7 +45,7 @@ const SCRIPT: Array<Omit<WorkspaceEvent, "id" | "prev_hash" | "hash" | "seq" | "
     workspace_id: "demo-workspace",
     provider: "system",
     event_type: "provider_connected",
-    payload: { provider: "bob", detail: "Bob Shell connected via hackathon-provisioned account" },
+    payload: { provider: "bob", detail: "Bob connected via hackathon-provisioned account" },
   },
   {
     workspace_id: "demo-workspace",
@@ -124,7 +124,7 @@ const SCRIPT: Array<Omit<WorkspaceEvent, "id" | "prev_hash" | "hash" | "seq" | "
     agent_id: "opencode-1",
     provider: "claude_code",
     event_type: "dispatch_started",
-    payload: { command: "opencode run --format json" },
+    payload: { command: "claude run --format json" },
   },
   {
     workspace_id: "demo-workspace",

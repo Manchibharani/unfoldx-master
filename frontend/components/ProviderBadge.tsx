@@ -3,7 +3,7 @@ import { ProviderLogo } from "./ProviderLogo";
 
 const LABEL: Record<Provider, string> = {
   bob: "Bob",
-  claude_code: "OpenCode",
+  claude_code: "Claude",
   codex: "ChatGPT",
   github_copilot: "GitHub Copilot",
   gemini: "Antigravity",

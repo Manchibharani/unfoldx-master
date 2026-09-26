@@ -1,4 +1,5 @@
 import type { WorkspaceEvent } from "./types";
+import { PROVIDER_LABEL } from "./graph";
 
 function stringField(payload: Record<string, unknown>, key: string, fallback: string): string {
   const value = payload[key];
@@ -6,7 +7,7 @@ function stringField(payload: Record<string, unknown>, key: string, fallback: st
 }
 
 function displayProvider(value: string): string {
-  return value === "claude_code" ? "OpenCode" : value.replace(/_/g, " ");
+  return PROVIDER_LABEL[value as keyof typeof PROVIDER_LABEL] ?? value.replace(/_/g, " ");
 }
 
 /**
