@@ -13,7 +13,7 @@ body {
   /* Scrim first so it sits on top of the artwork, keeping UI text readable. */
   background-image:
     linear-gradient(rgba(8, 13, 24, 0.55), rgba(8, 13, 24, 0.82)),
-    url("/background.png");
+    url("/background-gradient.png");
   background-repeat: no-repeat;
   background-position: center top;
   background-attachment: fixed;
