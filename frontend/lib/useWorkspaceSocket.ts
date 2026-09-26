@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { budgetApi } from "./api";
 import type { BudgetSnapshot, ConnectionState, Provider, WorkspaceEvent } from "./types";
 import { startMockFeed } from "./mockEvents";
 
@@ -25,11 +26,20 @@ export function useWorkspaceSocket(workspaceId: string, token: string | null = n
       setBudgets((prev) => {
         const current = prev.get(event.provider);
         const payload = event.payload as Record<string, unknown>;
+        // The backend sends absolute tokens_in/tokens_out in every budget_update
+        // payload; prefer those so a missed event can never leave the ledger stale.
+        // Fall back to delta accumulation for feeds that only carry tokens_delta
+        // (the mock feed does).
+        const absTokens =
+          (typeof payload.tokens_in === "number" ? payload.tokens_in : 0) +
+          (typeof payload.tokens_out === "number" ? payload.tokens_out : 0);
+        const deltaTokens = typeof event.tokens_delta === "number" ? event.tokens_delta : 0;
+        const tokens = absTokens > 0 ? absTokens : (current?.tokens_used ?? 0) + deltaTokens;
         const next: BudgetSnapshot = {
           provider: event.provider,
           spent_usd: typeof payload.spent_usd === "number" ? payload.spent_usd : (current?.spent_usd ?? 0),
           cap_usd: typeof payload.cap_usd === "number" ? payload.cap_usd : (current?.cap_usd ?? 0),
-          tokens_used: (current?.tokens_used ?? 0) + (typeof event.tokens_delta === "number" ? event.tokens_delta : 0),
+          tokens_used: tokens,
           circuit_breaker_tripped:
             event.event_type === "circuit_breaker_triggered"
               ? true
@@ -43,6 +53,36 @@ export function useWorkspaceSocket(workspaceId: string, token: string | null = n
       });
     }
   }, []);
+
+  /**
+   * Hydrate the ledger from the authoritative REST budget endpoint. The WS
+   * stream only carries budget_update events for *new* spend, so after a
+   * reload the ledger would sit at $0.000 / 0 tok until the next task runs.
+   * Also reconciles counters after a reconnect dropped events.
+   */
+  const hydrateBudgets = useCallback(() => {
+    if (process.env.NEXT_PUBLIC_MOCK === "1") return;
+    budgetApi
+      .get(workspaceId)
+      .then((res) => {
+        setBudgets((prev) => {
+          const next = new Map(prev);
+          for (const row of res.providers) {
+            next.set(row.provider as Provider, {
+              provider: row.provider as Provider,
+              spent_usd: row.spent_usd,
+              cap_usd: row.cap_usd,
+              tokens_used: row.tokens_in + row.tokens_out,
+              circuit_breaker_tripped: row.breaker_state === "open",
+            });
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        // Backend not reachable yet — live budget_update events still work.
+      });
+  }, [workspaceId]);
 
   useEffect(() => {
     const useMock = process.env.NEXT_PUBLIC_MOCK === "1";
@@ -70,6 +110,9 @@ export function useWorkspaceSocket(workspaceId: string, token: string | null = n
       socket.onopen = () => {
         attemptRef.current = 0;
         setConnectionState("connected");
+        // Ledger totals live in the DB, not the WS backlog: hydrate on every
+        // (re)connect so values are correct after reloads and reconnects.
+        hydrateBudgets();
       };
 
       socket.onmessage = (message) => {
@@ -102,7 +145,7 @@ export function useWorkspaceSocket(workspaceId: string, token: string | null = n
       cancelled = true;
       socketRef.current?.close();
     };
-  }, [workspaceId, token, handleEvent]);
+  }, [workspaceId, token, handleEvent, hydrateBudgets]);
 
   return { events, budgets, connectionState };
 }

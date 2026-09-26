@@ -440,9 +440,17 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
       }
       case "budget_update": {
         const target = (p.provider as Provider) ?? event.provider;
-        for (const a of byProvider.get(target) ?? []) {
+        // The backend sends absolute tokens_in/tokens_out; prefer them over
+        // delta accumulation so a replay that misses early events (the WS
+        // replays only the tail) still shows correct totals.
+        const absTokens =
+          (typeof p.tokens_in === "number" ? p.tokens_in : 0) +
+          (typeof p.tokens_out === "number" ? p.tokens_out : 0);
+        const holders = target === "bob" ? [bob] : (byProvider.get(target) ?? []);
+        for (const a of holders) {
           if (typeof p.spent_usd === "number") a.spentUsd = p.spent_usd;
           if (typeof p.cap_usd === "number") a.capUsd = p.cap_usd;
+          if (absTokens > 0) a.tokensUsed = absTokens;
         }
         break;
       }
@@ -461,7 +469,9 @@ export function buildHub(events: WorkspaceEvent[], overrides: HubOverrides): Hub
         break;
     }
 
-    if (typeof event.tokens_delta === "number") {
+    // budget_update carries absolute totals handled in its switch case (adding
+    // deltas on top would double-count the same spend/tokens).
+    if (typeof event.tokens_delta === "number" && event.event_type !== "budget_update") {
       for (const a of byProvider.get(event.provider) ?? []) a.tokensUsed += event.tokens_delta;
       if (event.provider === "bob") bob.tokensUsed += event.tokens_delta;
     }

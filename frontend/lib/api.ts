@@ -177,6 +177,33 @@ export interface VerifyResult {
   head_hash?: string | null;
 }
 
+/** One row of GET /api/workspaces/{id}/budget (mirrors BudgetService output). */
+export interface BudgetRow {
+  provider: string;
+  cap_usd: number;
+  spent_usd: number;
+  remaining_usd: number;
+  tokens_in: number;
+  tokens_out: number;
+  requests: number;
+  breaker_state: string;
+  tripped_at: string | null;
+}
+
+export interface BudgetsResponse {
+  providers: BudgetRow[];
+  total_spent_usd: number;
+  total_cap_usd: number;
+}
+
+export const budgetApi = {
+  /** Authoritative per-provider spend/token totals — used to hydrate/reconcile
+   *  the ledger, which otherwise only moves on live budget_update events. */
+  get(workspaceId: string): Promise<BudgetsResponse> {
+    return apiFetch(`/api/workspaces/${workspaceId}/budget`);
+  },
+};
+
 export const workspaceApi = {
   /** The caller's role in this workspace (view/control/approve) + name/owner. */
   getInfo(workspaceId: string): Promise<WorkspaceInfo> {

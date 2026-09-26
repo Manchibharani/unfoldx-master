@@ -31,7 +31,15 @@ class Settings(BaseSettings):
     external_jwt_secret: str | None = None
     token_ttl_minutes: int = 60 * 24
 
-    cors_origins: str = "http://localhost:3000,https://aashvarsha26.github.io"
+    # Dev CORS: allow any localhost port so the Next.js dev server can talk to the
+    # backend regardless of which random port the dev server rebinds to after a restart.
+    # (The Next.js dev server rebinds to a new random port on every restart, so a
+    # fixed single port like 3000 quickly goes stale.) Starlette's CORSMiddleware has
+    # NO port-wildcard support in the plain origin list ("http://localhost:*" would be
+    # treated as a literal string that never matches), so the dev wildcard is expressed
+    # via cors_origin_regex instead. In production set explicit origins and an empty regex.
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://aashvarsha26.github.io"
+    cors_origin_regex: str = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
     seed_demo_workspace: bool = True  # creates `demo-workspace` on startup when auth_mode=open
     demo_workspace_id: str = "demo-workspace"
 
