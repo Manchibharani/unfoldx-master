@@ -49,7 +49,7 @@ def _safe_repo_path(ctx: AppContext, workspace_id: str, rel: str):
     """Resolve `rel` inside the workspace repo dir; reject traversal outside it."""
     root = ctx.settings.workspaces_root / workspace_id / "repo"
     p = (root / rel).resolve()
-    if not str(p).startswith(str(root.resolve()) + "\\"):
+    if not p.is_relative_to(root.resolve()):
         return None
     return p
 
