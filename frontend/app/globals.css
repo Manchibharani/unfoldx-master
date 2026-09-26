@@ -24,9 +24,19 @@ body {
   box-sizing: border-box;
 }
 
-/* React Flow canvas background */
-.react-flow__renderer {
-  background-color: #080D18;
+/* Keep the workspace graph transparent over its animated video layer. */
+.workspace-flow .react-flow__renderer {
+  background-color: transparent;
+}
+
+.workspace-canvas__video {
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-canvas__video {
+    display: none;
+  }
 }
 
 .react-flow__controls {
