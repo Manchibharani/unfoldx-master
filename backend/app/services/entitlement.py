@@ -164,6 +164,13 @@ class EntitlementService:
         val = os.environ.get(adapter.api_key_env)
         if val:
             return {adapter.api_key_env: val}, False
+        # IBM Bob Shell's current non-interactive docs use BOB_API_KEY. Older UNFOLD X
+        # deployments used BOBSHELL_API_KEY, so keep the legacy name as a compatibility
+        # fallback rather than silently breaking an existing Railway secret.
+        if adapter.provider == "bob":
+            legacy = os.environ.get("BOBSHELL_API_KEY")
+            if legacy:
+                return {"BOB_API_KEY": legacy}, False
         return {}, conn.auth_type == "host_session"
 
     async def _probe_auth(self, provider: str) -> bool:
