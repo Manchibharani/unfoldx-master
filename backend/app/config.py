@@ -60,7 +60,10 @@ class Settings(BaseSettings):
     # Failover: when a real CLI executor fails mid-task (bad auth, crash, non-zero exit), the
     # subtask is re-queued to the next-best agent and the failing provider is benched for this
     # many seconds so one broken CLI cannot poison the whole task with repeated failures.
-    failover_cooldown_seconds: float = 120.0
+    # An auth failure ("not signed in") cannot recover mid-task — the user has to log in on the
+    # host — so the default bench is long enough that sibling subtasks skip the dead CLI
+    # entirely instead of each paying a doomed attempt on it.
+    failover_cooldown_seconds: float = 600.0
     # Total dispatch attempts one subtask may consume before it is declared failed. With four
     # providers, a cap of 4 lets every real CLI fail once and the task still finish on a
     # simulated agent instead of dying because two different CLIs each failed once.

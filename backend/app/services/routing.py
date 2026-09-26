@@ -4,7 +4,12 @@ score = 0.6*capability_fit + 0.2*cost_efficiency + 0.2*budget_headroom (+0.03 Bo
 conductor). Providers with an open circuit breaker / exhausted quota are excluded. Agents whose CLI is
 not installed on this host are excluded from scoring whenever at least one genuinely-available CLI
 exists, so routing prefers a real executor over a simulated one; when NO CLI is installed the
-high-scoring candidate still wins and the clearly-labelled simulated run is used (demo mode)."""
+high-scoring candidate still wins and the clearly-labelled simulated run is used (demo mode).
+
+Coordination: the orchestrator passes `avoid_provider` (the provider that just took a sibling subtask)
+plus a monotonically increasing `rr_counter` over the workspace's dispatches. Within a small score
+band (COORD_SPREAD) the pick round-robins across DISTINCT providers by capability order, so parallel
+subtasks spread across the connected AIs by strength instead of piling onto the single best scorer."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -14,6 +19,9 @@ from ..catalog import estimate_cost
 W_FIT, W_COST, W_QUOTA, BOB_BONUS = 0.6, 0.2, 0.2, 0.03
 DEFAULT_CAP_SCORE = 0.3
 EST_OUT_TOKENS = 3000  # assumption used only for *pre-dispatch* cost estimates
+# Within this score band a candidate counts as "just as good": coordination may
+# then prefer a different provider over the absolute best scorer.
+COORD_SPREAD = 0.04
 
 
 @dataclass
@@ -51,7 +59,8 @@ def est_tokens(description: str) -> tuple[int, int]:
 
 
 def choose(capabilities: list[str], description: str, candidates: list[Candidate], *,
-           forced_agent_id: str | None = None, exclude: set[str] | None = None) -> RouteDecision:
+           forced_agent_id: str | None = None, exclude: set[str] | None = None,
+           avoid_provider: str | None = None, rr_counter: int = 0) -> RouteDecision:
     exclude = exclude or set()
     tin, tout = est_tokens(description)
     viable: list[tuple[Candidate, float]] = []
@@ -105,10 +114,26 @@ def choose(capabilities: list[str], description: str, candidates: list[Candidate
                                         "score": round(total, 4)}))
     scored.sort(key=lambda t: t[0], reverse=True)
     best_score, best, est, bd = scored[0]
+
+    # ---- coordination: spread near-equal subtasks across distinct providers ----
+    # Only for unforced picks; never downgrade an explicitly requested agent.
+    if not forced_agent_id and avoid_provider is not None and len(capabilities) <= 2:
+        pool = [row for row in scored
+                if row[1].provider != avoid_provider and best_score - row[0] <= COORD_SPREAD]
+        if pool:
+            # order the near-equal pool by strength for this subtask's capabilities;
+            # rr_counter rotates through it so consecutive dispatches differ.
+            pool.sort(key=lambda row: sum(row[1].capabilities.get(cap, DEFAULT_CAP_SCORE) for cap in capabilities),
+                      reverse=True)
+            pick = pool[rr_counter % len(pool)]
+            best_score, best, est, bd = pick
+
     others = ", ".join(f"{c.name} {s:.2f}" for s, c, _, _ in scored[1:4])
     why = "explicitly requested" if forced_agent_id else "highest combined score"
     rationale = (f"{best.name} ({why}) for [{', '.join(capabilities)}]: capability fit {bd['capability_fit']:.2f}, "
                  f"est. cost ${est:.3f}, ${best.budget['remaining_usd']:.2f} of ${best.budget['cap_usd']:.2f} budget left"
-                 + (f". Runners-up: {others}" if others else "") + (f". Skipped: {'; '.join(reasons)}" if reasons else ""))
+                 + (f". Runners-up: {others}" if others else "") + (f". Skipped: {'; '.join(reasons)}" if reasons else "")
+                 + (f". Coordinated: spread to {best.provider} (avoiding {avoid_provider})"
+                    if avoid_provider is not None and best.provider != avoid_provider else ""))
     bd["candidates"] = [{"agent_id": c.agent_id, "provider": c.provider, **b} for _, c, _, b in scored]
     return RouteDecision(best.agent_id, best.provider, round(best_score, 4), est, best.budget["remaining_usd"], rationale, bd)

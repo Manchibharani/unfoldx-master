@@ -25,6 +25,14 @@ from .routing import Candidate, RouteFailure, choose
 
 log = logging.getLogger("uaw.orchestrator")
 TERMINAL = {"completed", "failed", "cancelled"}
+AUTH_FAILURE_HINTS = ("not signed in", "not logged in", "please run /login", "unauthorized", "invalid api key",
+                      "authentication", "api key", "credit balance")
+AUTH_BENCH_SECONDS = 600.0  # a signed-out CLI cannot recover mid-task; bench it for the whole task
+
+
+def _looks_like_auth_failure(msg: str) -> bool:
+    low = (msg or "").lower()
+    return any(h in low for h in AUTH_FAILURE_HINTS)
 
 
 def _now() -> datetime:
@@ -66,6 +74,10 @@ class Orchestrator:
         # the router moves the work to the next-best agent and the provider gets a fresh
         # chance on later tasks. Empty/simulated failures never bench anybody.
         self.provider_cooldowns: dict[str, float] = {}
+        # workspace -> coordination state for spreading parallel subtasks across providers:
+        # the provider of the most recent dispatch and a round-robin counter of dispatches.
+        self._last_dispatched_provider: dict[str, str | None] = {}
+        self._rr_counter: dict[str, int] = {}
 
     # ------------------------------------------------------------------ helpers
     @property
@@ -115,6 +127,13 @@ class Orchestrator:
         """Bench a provider whose real CLI just failed hard (auth error, crash, timeout)."""
         if self.ctx.settings.failover_cooldown_seconds > 0 and self.ctx.adapters[provider].available():
             self.provider_cooldowns[provider] = _now().timestamp() + self.ctx.settings.failover_cooldown_seconds
+
+    def provider_auth_failed(self, provider: str) -> None:
+        """Bench a provider whose CLI is signed out. Unlike a crash, this cannot recover mid-task,
+        so bench for AUTH_BENCH_SECONDS regardless of the (shorter) failover cooldown setting —
+        sibling subtasks must skip the dead CLI instead of each paying a doomed attempt."""
+        if self.ctx.adapters[provider].available():
+            self.provider_cooldowns[provider] = _now().timestamp() + AUTH_BENCH_SECONDS
 
     # ------------------------------------------------------------------ submit
     async def submit_task(self, ws_id: str, user_id: str | None, prompt: str, attachment_ids: list[str]) -> Task:
@@ -269,7 +288,20 @@ class Orchestrator:
                     except RouteFailure:
                         decision = None
                 if decision is None:
-                    decision = choose(sub.capabilities, sub.description, cands, forced_agent_id=sub.forced_agent_id)
+                    ws_state = self._running.get(ws, {})
+                    # Coordination: while siblings are in flight, rotate near-equal candidates across
+                    # distinct providers (avoiding whoever just took the previous dispatch) so parallel
+                    # work spreads by strength instead of piling onto one AI. Only when more than one
+                    # viable provider is connected, and only for unforced picks.
+                    avoid, rr = None, 0
+                    if ws_state:
+                        viable_providers = {c.provider for c in cands if c.enabled and c.budget["remaining_usd"] > 0}
+                        if len(viable_providers) > 1:
+                            avoid = self._last_dispatched_provider.get(ws)
+                            rr = self._rr_counter.get(ws, 0)
+                    decision = choose(sub.capabilities, sub.description, cands, forced_agent_id=sub.forced_agent_id,
+                                      avoid_provider=avoid, rr_counter=rr)
+                    self._rr_counter[ws] = rr + 1
             except RouteFailure as f:
                 if f.budget_blocked:
                     await self._set(sub.id, status="paused_budget")
@@ -292,6 +324,8 @@ class Orchestrator:
                     "est_cost_usd": decision.est_cost_usd, "remaining_usd": decision.remaining_usd,
                     "breakdown": decision.breakdown}, task_id=rt.task_id, subtask_id=sub.id,
                     agent_id=decision.agent_id, provider=decision.provider)
+            if announce:
+                self._last_dispatched_provider[ws] = decision.provider
             # ---- conflict check against every other in-flight subtask in the workspace
             blockers = [(o, colliding_paths(sub.target_files, o.files)) for o in running.values()]
             blockers = [(o, p) for o, p in blockers if p]
@@ -381,7 +415,10 @@ class Orchestrator:
                 # (default 4, one per provider) bounds cost: if every real executor is down the
                 # final failure is reported as-is.
                 if not outcome.simulated and not rs.redirected and sub.attempts < self.ctx.settings.max_subtask_attempts:
-                    self.provider_failed(agent.provider)
+                    if _looks_like_auth_failure(msg):
+                        self.provider_auth_failed(agent.provider)
+                    else:
+                        self.provider_failed(agent.provider)
                     await self._set(sub_id, status="pending", agent_id=agent.id,
                                     forced_agent_id=None, error=None, finished_at=None)
                     await self.ctx.events.append(ws, "log_line", {
