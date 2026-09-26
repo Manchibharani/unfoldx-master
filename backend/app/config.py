@@ -7,7 +7,7 @@ import secrets
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,8 +70,8 @@ class Settings(BaseSettings):
     ws_replay_default: int = 200
     entitlement_poll_seconds: float = 60
     max_upload_bytes: int = 10 * 1024 * 1024
-    # Optional outbound local worker for ChatGPT-authenticated Codex CLI.
-    agent_bridge_token: str | None = None
+    # Shared secret for the outbound local agent bridge. The bridge can host Codex now and other local CLIs later.
+    agent_bridge_token: str | None = Field(default=None, validation_alias="UNFOLDX_AGENT_BRIDGE_TOKEN")
 
     # Simulation: when a provider CLI is not installed, run a clearly-labelled simulated agent so
     # the full pipeline stays demoable. Set ALLOW_SIMULATION=0 in production.
