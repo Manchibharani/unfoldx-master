@@ -30,6 +30,7 @@ class AppContext:
         self.vault = Vault(settings.fernet_key, settings.secret_key)
         self.events = EventService(self.db.sessionmaker, self.bus, settings.secret_key)
         self.local_codex = LocalCodexBroker(settings.local_worker_token)
+        self.entitlement._local_codex_broker = self.local_codex
         self.adapters = build_adapters(settings)
         self.budget = BudgetService(self.db.sessionmaker)
         self.entitlement = EntitlementService(self.db.sessionmaker, settings, self.vault, self.adapters, self.budget, self.events)
