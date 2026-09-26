@@ -77,7 +77,7 @@ async def feed(websocket: WebSocket, workspace_id: str):
         pass
 
 
-@router.websocket("/ws/worker")
+@router.websocket("/ws/agent-bridge")
 async def local_worker(websocket: WebSocket):
     """Authenticated outbound worker channel for local ChatGPT-authenticated Codex."""
     ctx = websocket.app.state.ctx
