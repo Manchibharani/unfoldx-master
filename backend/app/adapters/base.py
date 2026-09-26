@@ -163,7 +163,14 @@ class CliAdapter:
         return _split_cmd(raw)
 
     def build_argv(self, req: RunRequest) -> list[str]:
-        return [tok.replace("{prompt}", req.prompt) for tok in self.template(req.mode)]
+        argv = [tok.replace("{prompt}", req.prompt) for tok in self.template(req.mode)]
+        if os.name == "nt":
+            # cmd.exe (used to launch npm .cmd shims) treats a newline inside a quoted argument
+            # as a command separator, silently truncating multi-line prompts — the CLI then
+            # falls back to its interactive greeting. Flatten whitespace so the whole prompt
+            # survives as ONE argv token.
+            argv = [" ".join(tok.split()) for tok in argv]
+        return argv
 
     def executable(self) -> str:
         return self.template("execute")[0]

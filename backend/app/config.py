@@ -71,8 +71,15 @@ class Settings(BaseSettings):
     bob_plan_cmd: str = "bob run --mode plan --output-format stream-json {prompt}"
     claude_cmd: str = "claude -p {prompt} --output-format stream-json --verbose --permission-mode acceptEdits"
     claude_plan_cmd: str = "claude -p {prompt} --output-format stream-json --verbose --permission-mode plan"
-    codex_cmd: str = "codex exec --json {prompt}"
-    codex_plan_cmd: str = "codex exec --json {prompt}"
+    # --skip-git-repo-check: tasks run in per-workspace dirs under data/workspaces, which are
+    # not git repositories — without the flag codex 0.157 refuses to start there.
+    # -s danger-full-access: codex's internal workspace-write sandbox helper fails on Windows
+    # ("unified exec process ... setup refresh had errors"), so its shell can't start at all.
+    # The backend provides the real containment itself (per-workspace cwd, scrubbed env,
+    # redirected HOME, hard timeout, process-group kill), which is the documented use for
+    # this mode. Read-only works but cannot edit files, so it's useless for coding tasks.
+    codex_cmd: str = "codex exec --json --skip-git-repo-check -s danger-full-access {prompt}"
+    codex_plan_cmd: str = "codex exec --json --skip-git-repo-check -s read-only {prompt}"
     gemini_cmd: str = "agy -p {prompt} --output-format stream-json --mode accept-edits"
     gemini_plan_cmd: str = "agy -p {prompt} --output-format stream-json --mode plan"
     # Env var each CLI reads its API key from (Bob's is an assumption - override to match Bob Shell).
