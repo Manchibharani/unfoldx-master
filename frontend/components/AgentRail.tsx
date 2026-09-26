@@ -8,7 +8,7 @@ import type { ControlAction } from "@/lib/useOrchestration";
 import type { Permissions } from "@/lib/permissions";
 import { ProviderLogo } from "./ProviderLogo";
 
-const ADDABLE_PROVIDERS: Provider[] = ["bob", "claude_code", "opencode", "codex", "github_copilot", "gemini"];
+const ADDABLE_PROVIDERS: Provider[] = ["bob", "opencode", "codex", "github_copilot", "gemini"];
 
 /** The judge scenario the demo button submits to the live backend. */
 const DEMO_PROMPT =
@@ -41,7 +41,7 @@ export function AgentRail({
   onSelect: (selection: HubSelection) => void;
   onAction: (action: ControlAction) => void;
 }) {
-  const [provider, setProvider] = useState<Provider>("claude_code");
+  const [provider, setProvider] = useState<Provider>("opencode");
 
   // Every node carries the latest task id, so the first one that has one can
   // target the task-level stop endpoint.

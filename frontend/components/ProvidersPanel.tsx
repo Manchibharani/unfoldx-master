@@ -24,7 +24,7 @@ const STATE_STYLE: Record<string, { label: string; cls: string }> = {
 };
 
 /** Providers whose CLIs authenticate via a host login OR an API key we can store. */
-const KEYED: Provider[] = ["bob", "claude_code", "opencode", "codex", "github_copilot", "gemini"];
+const KEYED: Provider[] = ["bob", "opencode", "codex", "github_copilot", "gemini"];
 
 export function ProvidersPanel({ workspaceId, canApprove }: { workspaceId: string; canApprove: boolean }) {
   const [rows, setRows] = useState<ProviderStatus[]>([]);

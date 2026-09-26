@@ -149,11 +149,12 @@ class Orchestrator:
             # dispatch that still hits a signed-out CLI fails fast, benches it, and the
             # router re-routes — no per-dispatch login probe (too slow/costly here).
             cli_available = self.ctx.adapters[a.provider].available() and now >= self.provider_cooldowns.get(a.provider, 0.0)
+            benched = a.provider in self.provider_cooldowns and now < self.provider_cooldowns[a.provider]
             quota = None
             if c.pricing.get("model") == "seat" and c.pricing.get("monthly_request_quota"):
                 quota = int(c.pricing["monthly_request_quota"]) - b["requests"]
             out.append(Candidate(a.id, a.provider, a.name, a.capabilities or {}, c.pricing, b, a.enabled, quota,
-                                 cli_available=cli_available))
+                                 cli_available=cli_available, benched=benched))
         return out
 
     def provider_failed(self, provider: str) -> None:
@@ -423,9 +424,12 @@ class Orchestrator:
             if agent is None:
                 await self._set(sub_id, status="failed", error="agent no longer exists", finished_at=_now())
                 return
+            now_ts = _now().timestamp()
+            was_benched = agent.provider in self.provider_cooldowns and now_ts < self.provider_cooldowns[agent.provider]
             req = RunRequest(prompt=await self._build_prompt(task, sub), cwd=self.repo_dir(ws), mode="execute", model=agent.model,
                              timeout=self.ctx.settings.subtask_timeout_seconds, session_id=sub.session_id or uid(),
-                             title=sub.title, target_files=list(sub.target_files))
+                             title=sub.title, target_files=list(sub.target_files),
+                             force_simulated=was_benched)  # benched CLI: simulated run only, never another real attempt
 
             def keep(h): rs.handle = h
             async def on_file(path: str): await self._runtime_conflict(rt, rs, path)

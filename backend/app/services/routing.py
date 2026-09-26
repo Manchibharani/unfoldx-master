@@ -35,6 +35,7 @@ class Candidate:
     enabled: bool = True
     quota_requests_remaining: int | None = None
     cli_available: bool = True       # provider CLI installed on this host (adapter.available())
+    benched: bool = False            # in failover cooldown: a real run just failed hard (auth/crash)
 
 
 @dataclass
@@ -100,6 +101,13 @@ def choose(capabilities: list[str], description: str, candidates: list[Candidate
             raise RouteFailure(f"requested agent unavailable ({'; '.join(reasons) or 'not connected/enabled'})", budget_blocked)
     if not viable:
         raise RouteFailure("no agent available: " + ("; ".join(reasons) or "no providers connected"), budget_blocked)
+
+    # Demo-mode fallback ordering: when no genuinely-usable CLI exists, prefer candidates that
+    # are NOT in a failover bench (a benched provider just failed hard — re-running it real
+    # would be another doomed attempt; only its clearly-labelled simulated run remains).
+    non_benched = [(c, e) for c, e in viable if not c.benched]
+    if non_benched:
+        viable = non_benched
 
     max_est = max(e for _, e in viable) or 0.0
     scored = []

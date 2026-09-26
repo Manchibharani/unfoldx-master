@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from sqlalchemy import select
+
 from .adapters.providers import build_adapters
 from .bus import InMemoryBus, RedisBus
 from .config import Settings
@@ -35,12 +37,28 @@ class AppContext:
     async def startup(self) -> None:
         await self.db.create_all()
         await self._heal_agent_names()
+        await self._purge_removed_providers()
         await self.bus.start()
         await self.orchestrator.recover_interrupted()
         if self.settings.seed_demo_workspace and self.settings.auth_mode == "open":
             from .services.workspaces import seed_demo
             await seed_demo(self)
         self.entitlement.start_polling()
+
+    async def _purge_removed_providers(self) -> None:
+        """Providers removed from the catalog (e.g. claude_code) must not leave connections,
+        agents or budget rows behind: provider_status() would KeyError on the missing adapter."""
+        from sqlalchemy import delete
+        from .models import Agent, BudgetLedger, ProviderConnection
+        async with self.db.sessionmaker() as s:
+            rows = list((await s.execute(select(ProviderConnection.provider))).all())
+            stale = [r[0] for r in rows if r[0] not in self.adapters]
+            for p in stale:
+                await s.execute(delete(Agent).where(Agent.provider == p))
+                await s.execute(delete(BudgetLedger).where(BudgetLedger.provider == p))
+                await s.execute(delete(ProviderConnection).where(ProviderConnection.provider == p))
+            if stale:
+                await s.commit()
 
     async def _heal_agent_names(self) -> None:
         """Rename agents still carrying stale names from older catalog revisions to the

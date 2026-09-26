@@ -10,11 +10,10 @@ import type { Provider, WorkspaceEvent } from "./types";
  */
 
 /** Providers shown as agent nodes around the hub. Bob is the hub itself. */
-export const AGENT_PROVIDERS: Provider[] = ["claude_code", "opencode", "codex", "github_copilot", "gemini"];
+export const AGENT_PROVIDERS: Provider[] = ["opencode", "codex", "github_copilot", "gemini"];
 
 export const PROVIDER_LABEL: Record<Provider, string> = {
   bob: "Bob",
-  claude_code: "Claude",
   opencode: "OpenCode",
   codex: "ChatGPT",
   github_copilot: "GitHub Copilot",
@@ -24,7 +23,6 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
 
 export const PROVIDER_ACCENT: Record<Provider, string> = {
   bob: "#7C6EE8",
-  claude_code: "#C7CDD4",
   opencode: "#E0A75B",
   codex: "#10A37F",
   github_copilot: "#9B6CFF",
@@ -34,7 +32,6 @@ export const PROVIDER_ACCENT: Record<Provider, string> = {
 
 export const PROVIDER_CAPABILITIES: Record<Provider, string[]> = {
   bob: ["decomposition", "coordination", "repo-context"],
-  claude_code: ["implementation", "refactor", "tests"],
   opencode: ["implementation", "refactor", "tests"],
   codex: ["algorithms", "optimization", "implementation"],
   github_copilot: ["implementation", "refactor", "tests"],
@@ -278,8 +275,8 @@ export function routeTask(prompt: string): { provider: Provider; reason: string 
     if (k.words.some((w) => text.includes(w))) matched.push(k.capability);
   }
 
-  const candidates: Provider[] = ["claude_code", "gemini", "codex"];
-  let best: Provider = "claude_code";
+  const candidates: Provider[] = ["opencode", "gemini", "codex"];
+  let best: Provider = "opencode";
   let bestScore = -1;
   for (const p of candidates) {
     const score = matched.filter((c) => PROVIDER_CAPABILITIES[p].includes(c)).length;
@@ -291,8 +288,8 @@ export function routeTask(prompt: string): { provider: Provider; reason: string 
 
   if (bestScore <= 0) {
     return {
-      provider: "claude_code",
-      reason: `No capability signal — defaulting to ${PROVIDER_LABEL.claude_code} for general implementation.`,
+      provider: "opencode",
+      reason: `No capability signal — defaulting to ${PROVIDER_LABEL.opencode} for general implementation.`,
     };
   }
   return {

@@ -17,17 +17,16 @@ export function useWorkspaceSocket(workspaceId: string, token: string | null = n
   const cleanupMockRef = useRef<(() => void) | null>(null);
   // seq numbers the client has already applied. Reconnects replay the tail of the log, so
   // without this the feed double-counts token/cost deltas and duplicates rows.
-  const seenSeqsRef = useRef<Set<string> | null>(null);
-  if (seenSeqsRef.current === null) seenSeqsRef.current = new Set<string>();
+  const seenSeqsRef = useRef<Set<string>>(new Set<string>());
 
   const handleEvent = useCallback((event: WorkspaceEvent) => {
+    const seen = seenSeqsRef.current;
     const dedupKey = `${event.workspace_id}:${event.seq}`;
-    if (seenSeqsRef.current.has(dedupKey)) return;
-    seenSeqsRef.current.add(dedupKey);
-    if (seenSeqsRef.current.size > 5000) {
+    if (seen.has(dedupKey)) return;
+    seen.add(dedupKey);
+    if (seen.size > 5000) {
       // bounded: drop the oldest quarter once the set grows large
-      const keep = [...seenSeqsRef.current].slice(-3750);
-      seenSeqsRef.current = new Set(keep);
+      seenSeqsRef.current = new Set([...seen].slice(-3750));
     }
     setEvents((prev) => {
       const next = [...prev, event];

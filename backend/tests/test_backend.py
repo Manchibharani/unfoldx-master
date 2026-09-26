@@ -5,7 +5,7 @@ import sys
 import pytest
 
 from app.adapters.base import RunRequest
-from app.adapters.normalize import claude_event, codex_event, generic_event
+from app.adapters.normalize import codex_event, generic_event, opencode_event
 from app.events import GENESIS
 from app.schemas import WorkspaceEvent
 from pathlib import Path
@@ -24,12 +24,12 @@ def test_demo_workspace_seeded_and_chain_valid(make_client):
     with make_client() as c:
         assert c.get("/healthz").json()["status"] == "ok"
         provs = c.get("/api/workspaces/demo-workspace/providers").json()
-        assert {p["provider"] for p in provs} == {"bob", "claude_code", "opencode", "codex", "github_copilot", "gemini"}
+        assert {p["provider"] for p in provs} == {"bob", "opencode", "codex", "github_copilot", "gemini"}
         modes = {p["provider"]: p["mode"] for p in provs}
         assert modes["gemini"] == "real"      # fake Antigravity CLI is "installed" in tests
         assert set(v for k, v in modes.items() if k != "gemini") == {"simulated"}
         evts = events(c)
-        assert len(by_type(evts, "provider_connected")) == 6
+        assert len(by_type(evts, "provider_connected")) == 5
         for e in evts:
             WorkspaceEvent.model_validate(e)  # contract check on every emitted event
         v = c.get("/api/workspaces/demo-workspace/events/verify").json()
@@ -108,7 +108,7 @@ def test_conflict_detected_and_serialised(make_client):
 def test_circuit_breaker_pause_and_override(make_client):
     with make_client(sim_delay_seconds=0.01) as c:
         base = "/api/workspaces/demo-workspace"
-        for p in ("claude_code", "opencode", "codex", "github_copilot", "gemini"):  # leave only Bob to spend, with a tiny cap
+        for p in ("opencode", "codex", "github_copilot", "gemini"):  # leave only Bob to spend, with a tiny cap
             for a in c.get(f"{base}/agents").json():
                 if a["provider"] == p:
                     c.patch(f"{base}/agents/{a['id']}", json={"enabled": False})
@@ -147,7 +147,7 @@ def test_rbac_and_authorization_denied_events(make_client):
             assert c.put(f"{base}/members", json={"email": email, "role": role}, headers=owner).status_code == 200
         assert c.post(f"{base}/providers", json={"provider": "bob"}, headers=ctl).status_code == 403  # control can't connect
         assert c.post(f"{base}/providers", json={"provider": "bob"}, headers=owner).status_code == 201
-        assert c.post(f"{base}/providers", json={"provider": "claude_code", "api_key": "sk-ant-SECRET"}, headers=owner).status_code == 201
+        assert c.post(f"{base}/providers", json={"provider": "opencode", "api_key": "sk-oc-SECRET"}, headers=owner).status_code == 201
         assert c.get(base, headers=stranger).status_code == 404          # non-members can't even see it exists
         assert c.get(f"{base}/events", headers=viewer).status_code == 200
         r = c.post(f"{base}/tasks", json={"prompt": "Build a login API"}, headers=viewer)
@@ -281,14 +281,14 @@ def test_redirect_running_subtask_to_other_agent(make_client):
 def test_credentials_encrypted_and_never_returned(make_client):
     with make_client() as c:
         base = "/api/workspaces/demo-workspace"
-        r = c.post(f"{base}/providers", json={"provider": "claude_code", "api_key": "sk-ant-PLAINTEXT-123"})
+        r = c.post(f"{base}/providers", json={"provider": "opencode", "api_key": "sk-oc-PLAINTEXT-123"})
         assert r.status_code == 201
         assert "PLAINTEXT" not in r.text and r.json()["credential_stored"] is True
         assert "PLAINTEXT" not in c.get(f"{base}/providers").text
-        (cipher,) = sql(c, "select secret_ciphertext from provider_connections where provider='claude_code'")[0]
+        (cipher,) = sql(c, "select secret_ciphertext from provider_connections where provider='opencode'")[0]
         assert cipher and "PLAINTEXT" not in cipher
         ctx = c.app.state.ctx
-        assert ctx.vault.decrypt(cipher) == "sk-ant-PLAINTEXT-123"
+        assert ctx.vault.decrypt(cipher) == "sk-oc-PLAINTEXT-123"
         assert c.post(f"{base}/providers", json={"provider": "nope"}).status_code == 422
         assert c.delete(f"{base}/providers/bob").status_code == 409
 
@@ -320,7 +320,7 @@ def test_without_bob_uses_heuristic_planner(make_client):
     with make_client(seed_demo_workspace=False) as c:  # allow_simulation defaults on
         base = "/api/workspaces/no-bob"
         assert c.post("/api/workspaces", json={"name": "x", "id": "no-bob"}).status_code == 201
-        for p in ("claude_code", "codex", "github_copilot", "gemini"):
+        for p in ("opencode", "codex", "github_copilot", "gemini"):
             assert c.post(f"{base}/providers", json={"provider": p}).status_code == 201
         r = c.post(f"{base}/tasks", json={"prompt": PROMPT})
         assert r.status_code == 202
@@ -332,7 +332,7 @@ def test_without_bob_uses_heuristic_planner(make_client):
         # planning was NOT attributed to Bob, and subtasks ran on the connected executors
         assert plan["planner"]["provider"] is None and plan["planner"]["mode"] == "heuristic-fallback"
         dispatched = [e["provider"] for e in by_type(evts, "dispatch_started")]
-        assert dispatched and "bob" not in dispatched and set(dispatched) <= {"claude_code", "codex", "github_copilot", "gemini"}
+        assert dispatched and "bob" not in dispatched and set(dispatched) <= {"opencode", "codex", "github_copilot", "gemini"}
         assert len(by_type(evts, "handoff_emitted")) == len(plan["subtasks"])
         detail = c.get(f"/api/tasks/{tid}").json()
         assert detail["status"] == "completed" and all(s["status"] == "completed" for s in detail["subtasks"])
@@ -493,12 +493,12 @@ def test_redis_bus_fanout():
 
 
 # ------------------------------------------------------------------------------------------ real subprocess path
-def _claude_agent(c):
+def _opencode_agent(c):
     ctx = c.app.state.ctx
-    ctx.settings.claude_cmd = f"{sys.executable} {FAKE} {{prompt}}"
-    ctx.settings.claude_plan_cmd = ctx.settings.claude_cmd
+    ctx.settings.opencode_cmd = f"{sys.executable} {FAKE} {{prompt}}"
+    ctx.settings.opencode_plan_cmd = ctx.settings.opencode_cmd
     base = "/api/workspaces/demo-workspace"
-    ag = next(a for a in c.get(f"{base}/agents").json() if a["provider"] == "claude_code")
+    ag = next(a for a in c.get(f"{base}/agents").json() if a["provider"] == "opencode")
     from app.models import Agent
 
     async def get():
@@ -510,7 +510,7 @@ def _claude_agent(c):
 def test_real_subprocess_parsing_cost_reconciliation_and_handoff(make_client):
     from app.services.planning import parse_handoff
     with make_client() as c:
-        ctx, agent = _claude_agent(c)
+        ctx, agent = _opencode_agent(c)
         req = RunRequest(prompt="do it", cwd=ctx.settings.workspaces_root / "demo-workspace" / "repo", title="t")
         out = c.portal.call(lambda: ctx.runner.run(ws_id="demo-workspace", task_id=None, subtask_id=None, agent=agent, req=req))
         assert out.ok and not out.simulated and out.files == ["backend/app.py"]
@@ -518,18 +518,18 @@ def test_real_subprocess_parsing_cost_reconciliation_and_handoff(make_client):
         assert abs(out.cost_usd - 0.05) < 1e-9        # reconciled to vendor-reported total_cost_usd
         assert parse_handoff(out.final_text)["decisions"] == ["use sqlite"]
         evts = events(c)
-        d = [e for e in by_type(evts, "dispatch_started") if e["provider"] == "claude_code"][-1]
+        d = [e for e in by_type(evts, "dispatch_started") if e["provider"] == "opencode"][-1]
         assert d["payload"]["simulated"] is False and "fake_cli.py" in d["payload"]["command"]
         assert any(e["payload"].get("line") == "plain non-json line" for e in by_type(evts, "log_line"))
 
 
 def test_real_subprocess_killed_by_circuit_breaker_and_timeout(make_client):
     with make_client() as c:
-        ctx, agent = _claude_agent(c)
+        ctx, agent = _opencode_agent(c)
         base = "/api/workspaces/demo-workspace"
         cwd = ctx.settings.workspaces_root / "demo-workspace" / "repo"
         # tiny cap: first usage event (3000 tokens ~ $0.036) trips the breaker and the still-sleeping process must die
-        c.post(f"{base}/providers", json={"provider": "claude_code", "cap_usd": 0.01})
+        c.post(f"{base}/providers", json={"provider": "opencode", "cap_usd": 0.01})
         holder = {}
         req = RunRequest(prompt="SLEEP forever", cwd=cwd, title="t")
         out = c.portal.call(lambda: ctx.runner.run(ws_id="demo-workspace", task_id=None, subtask_id=None, agent=agent, req=req,
@@ -538,10 +538,10 @@ def test_real_subprocess_killed_by_circuit_breaker_and_timeout(make_client):
         assert holder["h"].proc.returncode is not None  # child process group was killed
         assert by_type(events(c), "circuit_breaker_triggered")
         # timeout path
-        c.post(f"{base}/budget/claude_code/override", json={"additional_usd": 50})
+        c.post(f"{base}/budget/opencode/override", json={"additional_usd": 50})
         req2 = RunRequest(prompt="SLEEP forever", cwd=cwd, title="t2", timeout=1.5)
         # first usage line arrives instantly; give it a prompt without usage by using timeout only
-        ctx.settings.claude_cmd = f"{sys.executable} -c 'import time;print(1,flush=True);time.sleep(60)' {{prompt}}"
+        ctx.settings.opencode_cmd = f"{sys.executable} -c 'import time;print(1,flush=True);time.sleep(60)' {{prompt}}"
         out2 = c.portal.call(lambda: ctx.runner.run(ws_id="demo-workspace", task_id=None, subtask_id=None, agent=agent, req=req2))
         assert not out2.ok and "timed out" in (out2.error or "")
 
@@ -559,10 +559,6 @@ def test_missing_cli_without_simulation_fails_cleanly(make_client):
 # ------------------------------------------------------------------------------------------ units
 def test_normalizers():
     st = {}
-    ev = claude_event({"type": "assistant", "message": {"id": "a", "content": [
-        {"type": "tool_use", "name": "Write", "input": {"file_path": "x.py"}}], "usage": {"input_tokens": 5, "output_tokens": 7}}}, st)
-    assert [e.kind for e in ev] == ["log", "file", "usage"] and ev[2].tokens_out == 7
-    assert claude_event({"type": "result", "is_error": True, "result": "boom"}, {})[-1].kind == "error"
     cx = codex_event({"type": "item.completed", "item": {"type": "file_change", "changes": [{"path": "a.py"}]}}, {})
     assert cx[-1].files == ["a.py"]
     assert codex_event({"type": "turn.completed", "usage": {"input_tokens": 3, "output_tokens": 4}}, {})[0].tokens_in == 3
@@ -673,18 +669,20 @@ def test_auth_failure_benches_provider_for_sibling_subtasks(make_client):
     with make_client(sim_delay_seconds=0.05) as c:
         base = "/api/workspaces/demo-workspace"
         agents = {a["provider"]: a["id"] for a in c.get(f"{base}/agents").json()}
-        for p in ("codex", "github_copilot", "bob"):  # keep claude_code (fake) + gemini (fake agy)
+        for p in ("codex", "github_copilot", "bob", "gemini"):  # leave ONLY opencode (fake signed-out CLI)
             c.patch(f"{base}/agents/{agents[p]}", json={"enabled": False})
         ctx = c.app.state.ctx
-        ctx.settings.claude_cmd = f"{sys.executable} {FAKE_AUTH} {{prompt}}"
-        ctx.settings.claude_plan_cmd = ctx.settings.claude_cmd
+        ctx.settings.opencode_cmd = f"{sys.executable} {FAKE_AUTH} {{prompt}}"
+        ctx.settings.opencode_plan_cmd = ctx.settings.opencode_cmd
         tid = c.post(f"{base}/tasks", json={"prompt": "Implement the backend API and do a security review"}).json()["id"]
         wait_event(c, "task_completed", pred=lambda e: e["task_id"] == tid, timeout=30)
         evts = [e for e in events(c) if e["task_id"] == tid]
         dispatches = [e for e in by_type(evts, "dispatch_started") if e["payload"].get("mode") == "execute"]
-        claude_attempts = [e for e in dispatches if e["provider"] == "claude_code"]
-        assert claude_attempts, "claude should be tried at least once"
-        assert len(claude_attempts) <= 1, "benched provider must not be retried for sibling subtasks"
+        oc_real = [e for e in dispatches if e["provider"] == "opencode" and e["payload"].get("simulated") is False]
+        oc_sim = [e for e in dispatches if e["provider"] == "opencode" and e["payload"].get("simulated") is True]
+        assert oc_real, "opencode should be tried at least once"
+        assert len(oc_real) == 1, "benched provider must not get a second real attempt"
+        assert oc_sim, "after the bench the work must continue on the labelled simulated fallback"
         assert by_type(evts, "task_completed")[-1]["payload"]["status"] == "completed"
         d = c.get(f"/api/tasks/{tid}").json()
         assert d["status"] == "completed" and all(s["status"] == "completed" for s in d["subtasks"])

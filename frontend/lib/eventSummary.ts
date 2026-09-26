@@ -7,7 +7,8 @@ function stringField(payload: Record<string, unknown>, key: string, fallback: st
 }
 
 function displayProvider(value: string): string {
-  return PROVIDER_LABEL[value as keyof typeof PROVIDER_LABEL] ?? value.replace(/_/g, " ");
+  return PROVIDER_LABEL[value as keyof typeof PROVIDER_LABEL]
+    ?? value.replace(/_code$/, "").replace(/_/g, " ");  // legacy ids (claude_code) degrade gracefully
 }
 
 /**

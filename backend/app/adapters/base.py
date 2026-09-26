@@ -50,6 +50,9 @@ class RunRequest:
     session_id: str = field(default_factory=uid)
     title: str = ""
     target_files: list[str] = field(default_factory=list)   # used by the simulator
+    # Router decided this provider must NOT run real (it is in a failover bench after a hard
+    # failure): run the clearly-labelled simulator instead of the installed-but-doomed CLI.
+    force_simulated: bool = False
 
 
 @dataclass
@@ -261,7 +264,7 @@ class CliAdapter:
         if os.name == "nt" and self.provider == "gemini":
             keep_host_home = True
         secrets = list(req.env.values())
-        if not self.available():
+        if not self.available() or req.force_simulated:
             if not self.settings.allow_simulation:
                 raise AdapterUnavailable(
                     f"{self.display_name}: executable '{self.executable()}' not found on PATH and simulation is disabled")

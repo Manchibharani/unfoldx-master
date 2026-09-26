@@ -18,6 +18,10 @@ MAX_LINE = 2000
 MAX_BUFFER = 200_000
 
 
+def _looks_like_auth_error(text: str) -> bool:
+    return is_cli_auth_error(text or "")
+
+
 @dataclass
 class RunOutcome:
     ok: bool = False
@@ -156,6 +160,11 @@ class AgentRunner:
         out.final_text = result_text or "\n".join(buffer[-20:])
         if error_seen:
             out.error = error_seen
+            # Some CLIs write their login banner to stderr only (merged into the buffer) and
+            # exit non-zero without emitting any JSON error event — classify from the buffer
+            # so failover treats it as an auth failure and benches the provider.
+            if _looks_like_auth_error("\n".join(buffer)):
+                out.error_kind = "auth"
         elif hard_cli_failure and permission_error_text:
             out.error = f"{adapter.display_name} denied a tool call (headless permission policy): {permission_error_text}"
             out.error_kind = "permission"
