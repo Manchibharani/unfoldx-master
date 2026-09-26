@@ -1,4 +1,4 @@
-# Local Codex with ChatGPT Login
+# Local Agent Bridge with ChatGPT-authenticated Codex
 
 UNFOLD X can execute Codex locally without an OpenAI API key.
 
@@ -23,10 +23,10 @@ Railway never receives the local Codex/ChatGPT credential. The worker runs Codex
 Set one environment variable on the backend service:
 
 ```
-LOCAL_WORKER_TOKEN=<long-random-secret>
+UNFOLDX_AGENT_BRIDGE_TOKEN=<long-random-secret>
 ```
 
-Keep `OPENAI_API_KEY` unset if you want Codex to use ChatGPT authentication through the local worker.
+Keep `OPENAI_API_KEY` unset if you want Codex to use ChatGPT authentication through the agent bridge.
 
 ## Local machine
 
@@ -44,7 +44,7 @@ Windows PowerShell:
 
 ```
 $env:UNFOLDX_BACKEND_WS="wss://unfoldx-master-production.up.railway.app"
-$env:UNFOLDX_WORKER_TOKEN="<same token as Railway>"
+$env:UNFOLDX_AGENT_BRIDGE_TOKEN="<same token as Railway>"
 $env:UNFOLDX_LOCAL_REPO="C:\path\to\your\workspace"
 python backend/scripts/codex_worker.py
 ```
